@@ -22,6 +22,7 @@ from models.database import (
 from strategies.base import StrategyRegistry
 from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
+from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
 
 # 创建应用
 app = FastAPI(
@@ -69,6 +70,7 @@ class BacktestRequest(BaseModel):
     start_date: str
     end_date: str
     initial_cash: float = 100000
+    symbols: List[str] = Field(default_factory=lambda: ["000001"])
 
     model_config = {"populate_by_name": True}
 
@@ -83,6 +85,8 @@ class BacktestRequest(BaseModel):
             raise ValueError("开始日期必须早于结束日期")
         if self.initial_cash <= 0:
             raise ValueError("初始资金必须大于 0")
+        if len(self.symbols) != 1 or not self.symbols[0].isdigit() or len(self.symbols[0]) != 6:
+            raise ValueError("当前版本仅支持一个六位 A 股代码")
         return self
 
 
@@ -260,49 +264,50 @@ def run_backtest(request: BacktestRequest):
         if not strategy_class:
             raise HTTPException(status_code=404, detail="策略不存在")
         
-        strategy_instance = strategy_class()
-        
-        # TODO: 获取历史数据并回测
-        result = strategy_instance.backtest(
-            data=None,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            initial_cash=request.initial_cash
-        )
+        symbol = request.symbols[0]
+        configured = load_strategy_config().get("strategies", {}).get("tail", {}).get("params", {})
+        backtest_config = load_strategy_config().get("backtest", {})
+        params = {**configured, **backtest_config}
+        frame = fetch_daily_data(symbol, request.start_date, request.end_date)
+        result = run_tail_backtest(frame, symbol, request.initial_cash, params)
         
         # 保存回测记录
         repo = BacktestRepository(db)
         record = repo.save({
-            "strategy_name": result.strategy_name,
-            "start_date": result.start_date,
-            "end_date": result.end_date,
+            "strategy_name": request.strategy_name,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
             "initial_cash": request.initial_cash,
-            "final_value": result.total_return * request.initial_cash + request.initial_cash,
+            "final_value": result.final_value,
             "total_return": result.total_return,
             "sharpe_ratio": result.sharpe_ratio,
             "max_drawdown": result.max_drawdown,
             "win_rate": result.win_rate,
-            "total_trades": result.total_trades,
-            "trades_detail": result.trades
+            "total_trades": len(result.trades),
+            "trades_detail": {"trades": result.trades, "equity_curve": result.equity_curve}
         })
         
         return success_response({
             "id": record.id,
-            "strategy": result.strategy_name,
-            "start_date": result.start_date,
-            "end_date": result.end_date,
+            "strategy": request.strategy_name,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
             "initial_cash": request.initial_cash,
-            "final_value": result.total_return * request.initial_cash + request.initial_cash,
+            "final_value": result.final_value,
             "total_return": result.total_return * 100,
             "sharpe_ratio": result.sharpe_ratio,
             "max_drawdown": result.max_drawdown,
             "win_rate": result.win_rate * 100,
-            "total_trades": result.total_trades,
-            "equity_curve": [],
+            "total_trades": len(result.trades),
+            "equity_curve": result.equity_curve,
             "trades": result.trades,
             "created_at": record.created_at.isoformat() if record.created_at else None,
         })
         
+    except HTTPException:
+        raise
+    except HistoricalDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -328,8 +333,8 @@ def get_backtest_history(
         "max_drawdown": r.max_drawdown or 0,
         "win_rate": (r.win_rate or 0) * 100,
         "total_trades": r.total_trades or 0,
-        "equity_curve": [],
-        "trades": r.trades_detail or [],
+        "equity_curve": (r.trades_detail or {}).get("equity_curve", []) if isinstance(r.trades_detail, dict) else [],
+        "trades": (r.trades_detail or {}).get("trades", []) if isinstance(r.trades_detail, dict) else (r.trades_detail or []),
         "created_at": r.created_at.isoformat() if r.created_at else None,
     } for r in records]
     

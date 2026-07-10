@@ -7,6 +7,7 @@ import {
   Form,
   DatePicker,
   InputNumber,
+  Input,
   Select,
   Button,
   Statistic,
@@ -26,6 +27,7 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Line } from '@ant-design/charts';
 
 import { backtestApi } from '../api';
 import type { BacktestResult, BacktestTrade } from '../types/api';
@@ -65,6 +67,7 @@ export default function Backtest() {
         start_date: values.dates[0].format('YYYYMMDD'),
         end_date: values.dates[1].format('YYYYMMDD'),
         initial_cash: values.initial_cash || 100000,
+        symbols: [values.symbol],
       });
 
       if (res.code === 0) {
@@ -205,6 +208,7 @@ export default function Backtest() {
               onFinish={handleRunBacktest}
               initialValues={{
                 strategy: '尾盘策略',
+                symbol: '000001',
                 dates: [
                   dayjs().subtract(6, 'month'),
                   dayjs().subtract(1, 'day'),
@@ -224,6 +228,18 @@ export default function Backtest() {
                     { label: '突破策略', value: '突破策略' },
                   ]}
                 />
+              </Form.Item>
+
+              <Form.Item
+                label="股票代码"
+                name="symbol"
+                rules={[
+                  { required: true, message: '请输入股票代码' },
+                  { pattern: /^\d{6}$/, message: '请输入六位 A 股代码' },
+                ]}
+                extra="当前版本一次回测一只股票"
+              >
+                <Input maxLength={6} placeholder="例如 000001" />
               </Form.Item>
 
               <Form.Item
@@ -339,24 +355,21 @@ export default function Backtest() {
                   </Col>
                 </Row>
 
-                {/* 收益曲线（简化展示） */}
-                <div style={{ margin: '24px 0', textAlign: 'center' }}>
-                  <Text type="secondary">收益曲线</Text>
-                  <div
-                    style={{
-                      height: 200,
-                      background: '#f0f0f0',
-                      borderRadius: 8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginTop: 8,
-                    }}
-                  >
-                    <Text type="secondary">
-                      初始: ¥{currentResult.initial_cash.toLocaleString()} → 最终:
-                      ¥{currentResult.final_value.toLocaleString()}
-                    </Text>
+                <div style={{ margin: '24px 0' }}>
+                  <Title level={4}>资金曲线</Title>
+                  {currentResult.equity_curve?.length > 1 ? (
+                    <Line
+                      data={currentResult.equity_curve}
+                      xField="date"
+                      yField="value"
+                      height={220}
+                      axis={{ y: { labelFormatter: (value) => `¥${Number(value).toLocaleString()}` } }}
+                    />
+                  ) : (
+                    <Text type="secondary">区间内没有产生交易，资金保持不变。</Text>
+                  )}
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary">日线近似：信号日收盘买入，下一交易日开盘卖出，已计手续费和滑点。</Text>
                   </div>
                 </div>
 
