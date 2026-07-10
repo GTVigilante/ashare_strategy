@@ -49,8 +49,10 @@ cd astock_trader_react/frontend
 npm run build
 
 cd ../../../astock_trader
-./venv/bin/python -m compileall -q api models strategies
+./venv/bin/python -m compileall -q api models services strategies
 ```
+
+推送到 `main` 或创建 Pull Request 时，GitHub Actions 会自动运行后端单元测试、Python 编译检查和前端生产构建。CI 不访问外部行情接口，避免第三方服务波动影响代码质量判断。
 
 ## 风险提示
 

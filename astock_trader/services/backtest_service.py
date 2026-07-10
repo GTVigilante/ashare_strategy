@@ -51,8 +51,6 @@ def fetch_daily_data(
     fallback_fetcher: Callable[..., pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
     """Fetch daily bars with disk cache and Eastmoney -> Sina failover."""
-    import akshare as ak
-
     cache_dir = cache_dir or Path(__file__).resolve().parent.parent / "data" / "cache" / "daily"
     cache_file = cache_dir / f"{symbol}_{start_date}_{end_date}.csv"
     if cache_file.exists():
@@ -63,8 +61,10 @@ def fetch_daily_data(
             cached.attrs["source"] = "cache"
             return cached
 
-    primary_fetcher = primary_fetcher or ak.stock_zh_a_hist
-    fallback_fetcher = fallback_fetcher or ak.stock_zh_a_daily
+    if primary_fetcher is None or fallback_fetcher is None:
+        import akshare as ak
+        primary_fetcher = primary_fetcher or ak.stock_zh_a_hist
+        fallback_fetcher = fallback_fetcher or ak.stock_zh_a_daily
     errors = []
     frame = pd.DataFrame()
     for attempt in range(retries):
