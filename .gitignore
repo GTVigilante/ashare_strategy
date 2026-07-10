@@ -19,6 +19,7 @@
 **/*.log
 **/*.db
 **/*.sqlite*
+**/data/cache/
 
 # Editors
 .idea/

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Callable
 import time
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -24,14 +26,50 @@ class HistoricalDataError(RuntimeError):
     pass
 
 
-def fetch_daily_data(symbol: str, start_date: str, end_date: str, retries: int = 3) -> pd.DataFrame:
-    """Fetch unadjusted A-share daily bars so limit-up returns remain meaningful."""
+def _market_symbol(symbol: str) -> str:
+    return f"sh{symbol}" if symbol.startswith(("5", "6", "9")) else f"sz{symbol}"
+
+
+def _normalize_fallback(frame: pd.DataFrame) -> pd.DataFrame:
+    mapping = {
+        "date": "日期", "open": "开盘", "high": "最高", "low": "最低",
+        "close": "收盘", "volume": "成交量", "turnover": "换手率",
+    }
+    result = frame.rename(columns=mapping).copy()
+    if "换手率" in result:
+        result["换手率"] = pd.to_numeric(result["换手率"], errors="coerce") * 100
+    return result
+
+
+def fetch_daily_data(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+    retries: int = 3,
+    cache_dir: Path | None = None,
+    primary_fetcher: Callable[..., pd.DataFrame] | None = None,
+    fallback_fetcher: Callable[..., pd.DataFrame] | None = None,
+) -> pd.DataFrame:
+    """Fetch daily bars with disk cache and Eastmoney -> Sina failover."""
     import akshare as ak
 
-    last_error = None
+    cache_dir = cache_dir or Path(__file__).resolve().parent.parent / "data" / "cache" / "daily"
+    cache_file = cache_dir / f"{symbol}_{start_date}_{end_date}.csv"
+    if cache_file.exists():
+        current_query = end_date >= datetime.now().strftime("%Y%m%d")
+        fresh = time.time() - cache_file.stat().st_mtime < 300
+        if not current_query or fresh:
+            cached = pd.read_csv(cache_file)
+            cached.attrs["source"] = "cache"
+            return cached
+
+    primary_fetcher = primary_fetcher or ak.stock_zh_a_hist
+    fallback_fetcher = fallback_fetcher or ak.stock_zh_a_daily
+    errors = []
+    frame = pd.DataFrame()
     for attempt in range(retries):
         try:
-            frame = ak.stock_zh_a_hist(
+            frame = primary_fetcher(
                 symbol=symbol,
                 period="daily",
                 start_date=start_date,
@@ -39,15 +77,30 @@ def fetch_daily_data(symbol: str, start_date: str, end_date: str, retries: int =
                 adjust="",
                 timeout=15,
             )
-            break
+            if frame is not None and not frame.empty:
+                frame.attrs["source"] = "eastmoney"
+                break
+            errors.append("东方财富返回空数据")
         except Exception as exc:
-            last_error = exc
+            errors.append(f"东方财富: {exc}")
             if attempt + 1 < retries:
                 time.sleep(0.5 * (attempt + 1))
-    else:
-        raise HistoricalDataError(f"获取 {symbol} 历史行情失败（已重试 {retries} 次）: {last_error}") from last_error
     if frame is None or frame.empty:
-        raise HistoricalDataError(f"{symbol} 在所选区间没有历史行情")
+        try:
+            frame = fallback_fetcher(symbol=_market_symbol(symbol), start_date=start_date, end_date=end_date, adjust="")
+            frame = _normalize_fallback(frame)
+            frame.attrs["source"] = "sina"
+        except Exception as exc:
+            errors.append(f"新浪: {exc}")
+    if frame is None or frame.empty:
+        raise HistoricalDataError(f"{symbol} 在所选区间没有历史行情；" + " | ".join(errors))
+    missing = REQUIRED_COLUMNS - set(frame.columns)
+    if missing:
+        raise HistoricalDataError(f"{symbol} 行情缺少字段: {', '.join(sorted(missing))}")
+    source = frame.attrs.get("source", "unknown")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    frame.to_csv(cache_file, index=False)
+    frame.attrs["source"] = source
     return frame
 
 

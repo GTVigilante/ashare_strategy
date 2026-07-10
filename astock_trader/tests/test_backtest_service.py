@@ -1,8 +1,10 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from services.backtest_service import HistoricalDataError, run_tail_backtest
+from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
 
 
 class TailBacktestTests(unittest.TestCase):
@@ -45,6 +47,33 @@ class TailBacktestTests(unittest.TestCase):
     def test_rejects_short_history(self):
         with self.assertRaises(HistoricalDataError):
             run_tail_backtest(self.make_bars().head(10), "000001", 100_000)
+
+    def test_falls_back_and_reuses_disk_cache(self):
+        calls = {"primary": 0, "fallback": 0}
+
+        def primary(**_):
+            calls["primary"] += 1
+            raise ConnectionError("rate limited")
+
+        def fallback(**_):
+            calls["fallback"] += 1
+            return pd.DataFrame([{
+                "date": "2025-01-02", "open": 10, "high": 11, "low": 9.5,
+                "close": 10.5, "volume": 1000, "turnover": 0.04,
+            }])
+
+        with TemporaryDirectory() as directory:
+            args = dict(
+                symbol="000001", start_date="20250101", end_date="20250103",
+                retries=1, cache_dir=Path(directory), primary_fetcher=primary,
+                fallback_fetcher=fallback,
+            )
+            first = fetch_daily_data(**args)
+            second = fetch_daily_data(**args)
+        self.assertEqual(first.attrs["source"], "sina")
+        self.assertEqual(second.attrs["source"], "cache")
+        self.assertEqual(first.iloc[0]["换手率"], 4.0)
+        self.assertEqual(calls, {"primary": 1, "fallback": 1})
 
 
 if __name__ == "__main__":
