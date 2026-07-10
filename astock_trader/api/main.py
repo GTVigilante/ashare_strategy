@@ -3,7 +3,8 @@ FastAPI 后端
 提供 REST API 接口
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union
@@ -24,6 +25,8 @@ from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
 from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
 from services.screening_service import ScreeningDataError, screen_tail_candidates
+from services.auth_service import SessionStore, password_matches
+from config.settings import APP_PASSWORD, SESSION_TTL_SECONDS, CORS_ORIGINS, API_HOST, API_PORT
 
 # 创建应用
 app = FastAPI(
@@ -35,14 +38,31 @@ app = FastAPI(
 # CORS配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 初始化数据库
 db = get_db()
+sessions = SessionStore(SESSION_TTL_SECONDS)
+
+
+def bearer_token(request: Request) -> Optional[str]:
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    return token if scheme.lower() == "bearer" and token else None
+
+
+@app.middleware("http")
+async def require_authentication(request: Request, call_next):
+    public_paths = {"/api/health", "/api/auth/login"}
+    if request.method == "OPTIONS" or request.url.path in public_paths:
+        return await call_next(request)
+    if not sessions.validate(bearer_token(request)):
+        return JSONResponse(status_code=401, content=error_response("未登录或会话已过期", 401))
+    return await call_next(request)
 
 
 # 响应包装器
@@ -95,6 +115,26 @@ class StockQuery(BaseModel):
     symbol: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/auth/login")
+def login(request: LoginRequest):
+    if not APP_PASSWORD:
+        raise HTTPException(status_code=503, detail="服务端尚未配置 APP_PASSWORD")
+    if not password_matches(request.password, APP_PASSWORD):
+        raise HTTPException(status_code=401, detail="密码错误")
+    token, expires_in = sessions.create()
+    return success_response({"token": token, "expires_in": expires_in})
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request):
+    sessions.revoke(bearer_token(request))
+    return success_response(None, "已退出")
 
 
 # ============== 策略管理API ==============
@@ -477,4 +517,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=API_HOST, port=API_PORT)

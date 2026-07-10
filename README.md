@@ -19,6 +19,8 @@ cd astock_trader
 python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+# 编辑 .env，为 APP_PASSWORD 设置长随机密码
 uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -38,7 +40,7 @@ npm run dev -- --host 127.0.0.1 --port 8888
 
 前后端的仪表盘、自选股、策略配置、真实涨停池选股和单股日线回测可以本地运行。回测采用“信号日收盘买入、下一交易日开盘卖出”的日线近似模型，并非分钟级真实成交；这些结果不能直接用于投资决策或实盘交易。
 
-前端口令仅用于本地演示，无法替代后端身份认证。不要将服务直接暴露到公网。实盘使用前需要补充服务端认证、真实行情接入、完整回测、风控、测试和部署加固。
+登录口令由后端环境变量 `APP_PASSWORD` 验证，成功后签发默认有效期 8 小时的内存会话令牌。令牌会在后端重启后失效。不要将 `.env` 提交到仓库，也不要将服务直接暴露到公网；实盘使用前仍需补充持久化用户体系、HTTPS、限流、风控和部署加固。
 
 历史行情默认先读取 `astock_trader/data/cache/daily/` 本地缓存。缓存未命中时先请求东方财富，连续失败后自动切换新浪数据源；缓存目录属于运行数据，不会提交到 Git。
 

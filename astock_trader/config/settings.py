@@ -20,8 +20,13 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 # API配置
-API_HOST = os.getenv("API_HOST", "0.0.0.0")
+API_HOST = os.getenv("API_HOST", "127.0.0.1")
 API_PORT = int(os.getenv("API_PORT", 8000))
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", 8 * 60 * 60))
+CORS_ORIGINS = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS", "http://127.0.0.1:8888,http://localhost:8888"
+).split(",") if origin.strip()]
 
 # Web配置
 WEB_PORT = int(os.getenv("WEB_PORT", 8501))

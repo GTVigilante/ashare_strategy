@@ -13,4 +13,4 @@ echo "访问地址: http://localhost:8888"
 echo "访问密码: 828844"
 echo "======================================"
 
-npm run dev -- --host 0.0.0.0 --port 8888
+npm run dev -- --host 127.0.0.1 --port 8888

@@ -1,5 +1,5 @@
 /* @refresh reload */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Layout,
   Menu,
@@ -7,6 +7,7 @@ import {
   Button,
   Space,
   Drawer,
+  message,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -16,6 +17,7 @@ import {
   StarOutlined,
   MenuOutlined,
   QuestionCircleOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -25,24 +27,49 @@ import Backtest from './pages/Backtest';
 import Config from './pages/Config';
 import Watchlist from './pages/Watchlist';
 import './App.css';
+import { authApi } from './api';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
-const ACCESS_PASSWORD = '828844';
-
 type PageKey = 'dashboard' | 'screening' | 'backtest' | 'watchlist' | 'config';
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(authApi.hasSession());
   const [password, setPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const handleLogin = () => {
-    if (password === ACCESS_PASSWORD) {
-      setAuthenticated(true);
+  useEffect(() => {
+    const handleUnauthorized = () => setAuthenticated(false);
+    window.addEventListener('ashare:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('ashare:unauthorized', handleUnauthorized);
+  }, []);
+
+  const handleLogin = async () => {
+    if (!password) return;
+    setLoginLoading(true);
+    try {
+      const response = await authApi.login(password);
+      if (response.code === 0) {
+        setPassword('');
+        setAuthenticated(true);
+      }
+    } catch (error) {
+      const detail = (error as any)?.response?.data?.detail;
+      message.error(detail || '登录失败');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      setAuthenticated(false);
     }
   };
 
@@ -94,6 +121,7 @@ function App() {
               size="large"
               block
               onClick={handleLogin}
+              loading={loginLoading}
             >
               进入系统
             </Button>
@@ -185,6 +213,7 @@ function App() {
                 day: 'numeric',
               })}
             </Text>
+            <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout}>退出</Button>
           </div>
         </Header>
 

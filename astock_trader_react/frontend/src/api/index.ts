@@ -16,7 +16,8 @@ import type {
 } from '../types/api';
 
 // API 基础配置
-const BASE_URL = 'http://localhost:8000/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const TOKEN_KEY = 'ashare_session_token';
 
 // 创建 axios 实例
 const api = axios.create({
@@ -27,14 +28,36 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 // 响应拦截器
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     console.error('API Error:', error);
+    if (error?.response?.status === 401 && !error?.config?.url?.includes('/auth/login')) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event('ashare:unauthorized'));
+    }
     return Promise.reject(error);
   }
 );
+
+export const authApi = {
+  login: async (password: string): Promise<ApiResponse<{ token: string; expires_in: number }>> => {
+    const response = await api.post('/auth/login', { password }) as unknown as ApiResponse<{ token: string; expires_in: number }>;
+    if (response.code === 0) sessionStorage.setItem(TOKEN_KEY, response.data.token);
+    return response;
+  },
+  logout: async () => {
+    try { await api.post('/auth/logout'); } finally { sessionStorage.removeItem(TOKEN_KEY); }
+  },
+  hasSession: () => Boolean(sessionStorage.getItem(TOKEN_KEY)),
+};
 
 // ============ 策略 API ============
 

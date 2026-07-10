@@ -11,7 +11,7 @@ cd astock_trader_react
 ### 2. 启动后端API（端口 8000）
 ```bash
 cd astock_trader
-./venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+./venv/bin/python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
 ## 访问地址
