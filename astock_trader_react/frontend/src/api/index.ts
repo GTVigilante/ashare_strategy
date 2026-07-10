@@ -67,9 +67,12 @@ export const screenApi = {
   }): Promise<
     ApiResponse<{
       date: string;
+      pool_date: string;
+      pool_size: number;
       strategy: string;
       total: number;
       stocks: StockCandidate[];
+      skipped_errors: number;
     }>
   > => api.get('/screen', { params }),
 

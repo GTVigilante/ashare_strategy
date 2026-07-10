@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable
+import time
 
 import numpy as np
 import pandas as pd
@@ -23,21 +24,28 @@ class HistoricalDataError(RuntimeError):
     pass
 
 
-def fetch_daily_data(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+def fetch_daily_data(symbol: str, start_date: str, end_date: str, retries: int = 3) -> pd.DataFrame:
     """Fetch unadjusted A-share daily bars so limit-up returns remain meaningful."""
-    try:
-        import akshare as ak
+    import akshare as ak
 
-        frame = ak.stock_zh_a_hist(
-            symbol=symbol,
-            period="daily",
-            start_date=start_date,
-            end_date=end_date,
-            adjust="",
-            timeout=15,
-        )
-    except Exception as exc:
-        raise HistoricalDataError(f"获取 {symbol} 历史行情失败: {exc}") from exc
+    last_error = None
+    for attempt in range(retries):
+        try:
+            frame = ak.stock_zh_a_hist(
+                symbol=symbol,
+                period="daily",
+                start_date=start_date,
+                end_date=end_date,
+                adjust="",
+                timeout=15,
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt + 1 < retries:
+                time.sleep(0.5 * (attempt + 1))
+    else:
+        raise HistoricalDataError(f"获取 {symbol} 历史行情失败（已重试 {retries} 次）: {last_error}") from last_error
     if frame is None or frame.empty:
         raise HistoricalDataError(f"{symbol} 在所选区间没有历史行情")
     return frame

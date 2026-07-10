@@ -23,6 +23,7 @@ from strategies.base import StrategyRegistry
 from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
 from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
+from services.screening_service import ScreeningDataError, screen_tail_candidates
 
 # 创建应用
 app = FastAPI(
@@ -233,23 +234,22 @@ def screen_stocks(
         if not strategy_class:
             raise HTTPException(status_code=404, detail="策略不存在")
         
-        strategy_instance = strategy_class()
-        
-        # TODO: 调用AKShare获取涨停股数据
-        # 返回模拟数据演示
-        mock_stocks = [
-            {"symbol": "600519", "name": "贵州茅台", "price": 1680.00, "change": 2.5, "change_percent": 2.5, "turnover_rate": 0.5, "volume_ratio": 1.5, "market_cap": 2100, "amplitude": 3.2, "close": 1680.00, "ma_bullish": True, "macd_golden": True, "breakout": True, "confidence": 85, "reason": "均线多头+MACD金叉"},
-            {"symbol": "000858", "name": "五粮液", "price": 145.50, "change": 3.2, "change_percent": 3.2, "turnover_rate": 1.2, "volume_ratio": 1.8, "market_cap": 560, "amplitude": 4.1, "close": 145.50, "ma_bullish": True, "macd_golden": False, "breakout": True, "confidence": 72, "reason": "平台突破"},
-            {"symbol": "600036", "name": "招商银行", "price": 35.80, "change": 1.8, "change_percent": 1.8, "turnover_rate": 0.8, "volume_ratio": 1.3, "market_cap": 890, "amplitude": 2.5, "close": 35.80, "ma_bullish": True, "macd_golden": True, "breakout": False, "confidence": 68, "reason": "MACD金叉"},
-        ]
-        
+        screen_date = date or datetime.now().strftime("%Y%m%d")
+        configured = load_strategy_config().get("strategies", {}).get("tail", {}).get("params", {})
+        result = screen_tail_candidates(screen_date, configured)
         return success_response({
-            "date": date or datetime.now().strftime("%Y%m%d"),
+            "date": screen_date,
+            "pool_date": result["pool_date"],
+            "pool_size": result["pool_size"],
             "strategy": strategy,
-            "total": len(mock_stocks),
-            "stocks": mock_stocks
+            "total": len(result["stocks"]),
+            "stocks": result["stocks"],
+            "skipped_errors": len(result["errors"]),
         })
-        
+    except HTTPException:
+        raise
+    except ScreeningDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -34,6 +34,7 @@ const { Title, Text } = Typography;
 export default function Screening() {
   const [loading, setLoading] = useState(false);
   const [stocks, setStocks] = useState<StockCandidate[]>([]);
+  const [poolInfo, setPoolInfo] = useState('');
   const [date, setDate] = useState<string>(dayjs().format('YYYYMMDD'));
   const [strategy, setStrategy] = useState<string>('尾盘策略');
   const [selectedStock, setSelectedStock] = useState<StockCandidate | null>(null);
@@ -45,9 +46,13 @@ export default function Screening() {
       const res = await screenApi.screen({ date, strategy });
       if (res.code === 0) {
         setStocks(res.data.stocks || []);
+        setPoolInfo(`基于 ${res.data.pool_date} 涨停池 ${res.data.pool_size} 只`);
+        if (!res.data.stocks?.length) message.info('真实数据获取成功，但没有股票通过全部条件');
       }
     } catch (error) {
       console.error('筛选失败:', error);
+      const detail = (error as any)?.response?.data?.detail;
+      message.error(detail || '筛选失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -229,7 +234,7 @@ export default function Screening() {
         title={`筛选结果 (${stocks.length} 只)`}
         extra={
           <Tag color="blue">
-            <ThunderboltOutlined /> 实时数据
+            <ThunderboltOutlined /> 真实数据 {poolInfo}
           </Tag>
         }
       >
