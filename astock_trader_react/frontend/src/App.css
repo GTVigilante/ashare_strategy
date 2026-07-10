@@ -1,0 +1,403 @@
+/* A股量化交易系统 - 响应式样式 */
+
+/* 全局 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 登录页面 */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 16px;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.login-title {
+  word-break: break-word;
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.login-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Logo */
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+/* 响应式布局 */
+.app-layout {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* 桌面端侧边栏 - 默认显示 */
+.desktop-sider {
+  display: block;
+}
+
+/* 桌面端顶部 */
+.desktop-header {
+  display: flex;
+}
+
+/* 移动端导航 - 默认隐藏 */
+.mobile-header,
+.mobile-drawer {
+  display: none;
+}
+
+.mobile-nav {
+  display: none;
+}
+
+/* 移动端布局 */
+@media (max-width: 991px) {
+  .desktop-sider {
+    display: none;
+  }
+
+  .desktop-header {
+    display: none;
+  }
+
+  .mobile-header {
+    display: block;
+    background: #fff;
+  }
+
+  .mobile-nav {
+    display: flex;
+    padding: 0 16px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 56px;
+  }
+
+  .mobile-nav-content {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-title {
+    margin: 0 !important;
+    font-size: 18px !important;
+  }
+
+  .menu-btn {
+    font-size: 20px;
+  }
+
+  .main-layout {
+    margin-top: 56px;
+  }
+}
+
+/* 主内容区 */
+.main-layout {
+  transition: margin-left 0.2s;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.header-date {
+  display: block;
+  font-size: 14px;
+}
+
+@media (max-width: 576px) {
+  .header-date {
+    display: none;
+  }
+}
+
+.content-area {
+  padding: 0;
+  min-height: calc(100vh - 64px);
+  margin: 0;
+}
+
+.content-wrapper {
+  background: #fff;
+  border-radius: 0;
+  padding: 16px;
+  min-height: calc(100vh - 64px);
+}
+
+@media (max-width: 576px) {
+  .content-area {
+    padding: 0;
+  }
+
+  .content-wrapper {
+    padding: 12px;
+    border-radius: 0;
+  }
+}
+
+/* 页面标题 */
+.page-title {
+  margin-bottom: 24px;
+  color: #1890ff;
+}
+
+/* 卡片悬停效果 */
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 统计卡片 */
+.stat-card {
+  background: linear-gradient(135deg, #1890ff11, #1890ff05);
+  border: 1px solid #1890ff22;
+  height: 100%;
+}
+
+.stat-card-profit {
+  background: linear-gradient(135deg, #52c41a11, #52c41a05);
+  border: 1px solid #52c41a22;
+  height: 100%;
+}
+
+.stat-card-loss {
+  background: linear-gradient(135deg, #ff4d4f11, #ff4d4f05);
+  border: 1px solid #ff4d4f22;
+  height: 100%;
+}
+
+/* 表格 */
+.ant-table-wrapper {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+/* 标签 */
+.tag-blue {
+  background: #1890ff15;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.tag-green {
+  background: #52c41a15;
+  border-color: #52c41a;
+  color: #52c41a;
+}
+
+.tag-red {
+  background: #ff4d4f15;
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.tag-gold {
+  background: #faad1415;
+  border-color: #faad14;
+  color: #faad14;
+}
+
+/* 置信度圆圈 */
+.confidence-circle {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color) calc(var(--percent) * 1%),
+    #f0f0f0 calc(var(--percent) * 1%)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confidence-circle::before {
+  content: '';
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+}
+
+.confidence-circle span {
+  position: relative;
+  font-weight: bold;
+  color: var(--color);
+}
+
+/* 收益曲线占位 */
+.equity-placeholder {
+  height: 200px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #ffffff 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .ant-layout {
+    background: #141414;
+  }
+
+  .login-container {
+    background: linear-gradient(135deg, #000 0%, #111 50%, #1a1a2e 100%);
+  }
+
+  .login-box {
+    background: rgba(30, 30, 30, 0.95);
+  }
+
+  .mobile-nav {
+    background: #1f1f1f;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .content-wrapper {
+    background: #1f1f1f;
+  }
+}
+
+/* Ant Design 响应式覆盖 */
+@media (max-width: 576px) {
+  .ant-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .ant-col {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    margin-bottom: 12px;
+  }
+
+  .ant-card {
+    margin-bottom: 12px;
+  }
+
+  .ant-statistic-title {
+    font-size: 12px;
+  }
+
+  .ant-statistic-content {
+    font-size: 20px;
+  }
+
+  .ant-btn {
+    padding: 4px 12px;
+    font-size: 14px;
+  }
+}
+
+/* 表格响应式 */
+@media (max-width: 768px) {
+  .ant-table {
+    font-size: 12px;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+    white-space: nowrap;
+  }
+}
+
+/* 浮窗帮助按钮 */
+.help-float-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #1890ff, #52c41a);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(24, 144, 255, 0.4);
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.help-float-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(24, 144, 255, 0.5);
+}
+
+@media (max-width: 576px) {
+  .help-float-btn {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+  }
+}

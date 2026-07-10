@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股尾盘策略 - 新手入门指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+            line-height: 1.8;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1em;
+        }
+        
+        .avatar-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid #00d4ff;
+            object-fit: cover;
+        }
+        
+        .section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        h2 {
+            color: #00d4ff;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        h2::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #00d4ff, #7b2cbf);
+            border-radius: 2px;
+        }
+        
+        h3 {
+            color: #fff;
+            font-size: 1.2em;
+            margin: 20px 0 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+        
+        .highlight {
+            background: linear-gradient(90deg, rgba(0,212,255,0.2), rgba(123,44,191,0.2));
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #00d4ff;
+        }
+        
+        .flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .flow-step {
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .flow-step .emoji {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .flow-step .title {
+            color: #00d4ff;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .flow-step .desc {
+            font-size: 0.9em;
+            color: #999;
+        }
+        
+        .arrow {
+            font-size: 2em;
+            color: #7b2cbf;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        td {
+            color: #ccc;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 3px;
+        }
+        
+        .badge-green {
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
+        }
+        
+        .badge-red {
+            background: rgba(255,0,0,0.2);
+            color: #ff6b6b;
+        }
+        
+        .badge-blue {
+            background: rgba(0,212,255,0.2);
+            color: #00d4ff;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .card h4 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        
+        .card p {
+            font-size: 0.9em;
+            color: #999;
+            margin: 0;
+        }
+        
+        .warning {
+            background: rgba(255,200,0,0.1);
+            border: 1px solid rgba(255,200,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning-title {
+            color: #ffc800;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .tech-item {
+            background: rgba(123,44,191,0.2);
+            border: 1px solid rgba(123,44,191,0.4);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: #666;
+        }
+        
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8em; }
+            .flow { flex-direction: column; }
+            .arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="avatar-section">
+                <img src="avatar.png" alt="Trader" class="avatar">
+            </div>
+            <h1>A股尾盘策略</h1>
+            <p class="subtitle">新手入门指南 v1.0</p>
+        </header>
+        
+        <section class="section">
+            <h2>什么是尾盘策略？</h2>
+            <p>尾盘策略是一种<span class="highlight">超短线交易方法</span>，核心逻辑是：</p>
+            <p style="font-size: 1.2em; color: #fff; text-align: center; margin: 20px 0;">
+                <strong>尾盘买入 → 次日开盘冲高卖出 → 快进快出</strong>
+            </p>
+            <p>每天下午 <span class="highlight">14:30-15:00</span> 买入，第二天<span class="highlight">开盘就卖</span>，持仓一般不超过1天，追求的是"次日高开溢价"。</p>
+        </section>
+        
+        <section class="section">
+            <h2>交易流程图</h2>
+            <div class="flow">
+                <div class="flow-step">
+                    <div class="emoji">📊</div>
+                    <div class="title">每天下午2:30</div>
+                    <div class="desc">筛选昨日涨停股</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <div class="emoji">✅</div>
+                    <div class="title">满足选股条件</div>
+                    <div class="desc">量比、换手率、市值等</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <div class="emoji">📈</div>
+                    <div class="title">尾盘买入</div>
+                    <div class="desc">14:30-15:00下单</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <div class="emoji">💰</div>
+                    <div class="title">次日开盘卖</div>
+                    <div class="desc">高开即出/止损</div>
+                </div>
+            </div>
+        </section>
+        
+        <section class="section">
+            <h2>选股条件</h2>
+            <p>不是所有股票都能买，必须满足以下<span class="highlight">硬条件</span>：</p>
+            
+            <table>
+                <tr>
+                    <th>条件</th>
+                    <th>要求</th>
+                    <th>原因</th>
+                </tr>
+                <tr>
+                    <td>昨日涨停</td>
+                    <td><span class="badge badge-red">必须</span></td>
+                    <td>主力资金认可，当日最强信号</td>
+                </tr>
+                <tr>
+                    <td>量比</td>
+                    <td>> 1.2</td>
+                    <td>尾盘放量，资金在抢</td>
+                </tr>
+                <tr>
+                    <td>换手率</td>
+                    <td>> 3%</td>
+                    <td>流动性好，进出方便</td>
+                </tr>
+                <tr>
+                    <td>流通市值</td>
+                    <td>< 200亿</td>
+                    <td>盘子小，拉升容易</td>
+                </tr>
+                <tr>
+                    <td>振幅</td>
+                    <td>< 5%</td>
+                    <td>当日波动不能太大</td>
+                </tr>
+                <tr>
+                    <td>股价</td>
+                    <td>4-30元</td>
+                    <td>太高门槛高，太低股性差</td>
+                </tr>
+            </table>
+        </section>
+        
+        <section class="section">
+            <h2>技术指标（软参考）</h2>
+            <p>除了硬条件，还会参考一些技术指标来提高胜率：</p>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>📈 均线多头</h4>
+                    <p>5日均线 > 10日均线 > 20日均线，说明短期趋势向上</p>
+                </div>
+                <div class="card">
+                    <h4>📉 MACD金叉</h4>
+                    <p>DIF线从下往上穿过DEA线，且红柱放大，看涨信号</p>
+                </div>
+                <div class="card">
+                    <h4>🎯 平台突破</h4>
+                    <p>横盘整理后放量突破，爆发力强</p>
+                </div>
+                <div class="card">
+                    <h4>⏰ 封板时间</h4>
+                    <p>越早封板越强，尾盘封板有拉高出货嫌疑</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="section">
+            <h2>卖出纪律</h2>
+            <p>买入后怎么卖？必须遵守以下<span class="highlight">铁律</span>：</p>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>✅ 高开即出</h4>
+                    <p>次日开盘高开（涨幅>1%），马上卖，不恋战</p>
+                </div>
+                <div class="card">
+                    <h4>🛑 低开止损</h4>
+                    <p>次日开盘低开超过2%，无条件止损</p>
+                </div>
+                <div class="card">
+                    <h4>⚠️ 浮动止损</h4>
+                    <p>盘中亏损超过3%，立即卖出</p>
+                </div>
+                <div class="card">
+                    <h4>⏱ 时间止损</h4>
+                    <p>持仓超过3天必须出，不管盈亏</p>
+                </div>
+            </div>
+        </section>
+        
+        <div class="warning">
+            <div class="warning-title">⚠️ 风险提示</div>
+            <p>所有策略仅供参考，股市有风险，投资需谨慎。历史收益不代表未来表现，请根据自己的风险承受能力决定是否使用本策略。</p>
+        </div>
+        
+        <section class="section">
+            <h2>我是谁？</h2>
+            <p>我是 <span class="highlight">Trader Joe</span>，你的 A 股量化交易助手。</p>
+            <p>我的职责是帮你：</p>
+            <ul style="margin: 15px 0; padding-left: 20px;">
+                <li style="margin: 8px 0;">🔍 <strong>筛选股票</strong> - 按策略条件自动筛选候选股</li>
+                <li style="margin: 8px 0;">📊 <strong>回测验证</strong> - 用历史数据验证策略效果</li>
+                <li style="margin: 8px 0;">📈 <strong>数据分析</strong> - 计算各种技术指标</li>
+                <li style="margin: 8px 0;">⚙️ <strong>策略优化</strong> - 根据回测结果调整参数</li>
+            </ul>
+        </section>
+        
+        <section class="section">
+            <h2>我的能力来源</h2>
+            <p>我的能力来自以下几个开源工具和数据源：</p>
+            
+            <h3>数据源</h3>
+            <div class="tech-stack">
+                <span class="tech-item">📊 AKShare</span>
+                <span class="tech-item">东方财富</span>
+                <span class="tech-item">新浪财经</span>
+            </div>
+            <p>AKShare 是一个开源的金融数据接口库，可以获取 A 股实时行情、历史K线、涨停板等数据。</p>
+            
+            <h3>回测引擎</h3>
+            <div class="tech-stack">
+                <span class="tech-item">⚙️ Backtrader</span>
+                <span class="tech-item">Python量化框架</span>
+            </div>
+            <p>Backtrader 是 Python 最流行的量化回测框架之一，可以模拟真实交易、计算收益率、分析风险。</p>
+            
+            <h3>数据处理</h3>
+            <div class="tech-stack">
+                <span class="tech-item">🐼 Pandas</span>
+                <span class="tech-item">🔢 NumPy</span>
+                <span class="tech-item">📉 Matplotlib</span>
+            </div>
+            
+            <h3>相关开源项目</h3>
+            <table>
+                <tr>
+                    <th>项目</th>
+                    <th>Stars</th>
+                    <th>用途</th>
+                </tr>
+                <tr>
+                    <td>geraldsec/plank</td>
+                    <td>-</td>
+                    <td>A股自动打板</td>
+                </tr>
+                <tr>
+                    <td>OpenBB</td>
+                    <td>57k</td>
+                    <td>金融数据平台</td>
+                </tr>
+                <tr>
+                    <td>vn.py</td>
+                    <td>23k</td>
+                    <td>量化交易框架</td>
+                </tr>
+                <tr>
+                    <td>Qlib</td>
+                    <td>15k</td>
+                    <td>微软AI量化</td>
+                </tr>
+            </table>
+        </section>
+        
+        <section class="section">
+            <h2>我能做什么？</h2>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>🎯 尾盘选股</h4>
+                    <p>按策略条件筛选昨日涨停股，找出次日最有可能高开的候选股</p>
+                </div>
+                <div class="card">
+                    <h4>📈 策略回测</h4>
+                    <p>用历史数据模拟交易，验证策略在过去的表现（收益率、最大回撤等）</p>
+                </div>
+                <div class="card">
+                    <h4>🔧 参数优化</h4>
+                    <p>调整选股条件和卖出规则，找出最优参数组合</p>
+                </div>
+                <div class="card">
+                    <h4>📊 技术分析</h4>
+                    <p>计算均线、MACD、布林带等指标，辅助决策</p>
+                </div>
+            </div>
+            
+            <h3>未来可以扩展的功能</h3>
+            <ul style="margin: 15px 0; padding-left: 20px; color: #999;">
+                <li style="margin: 8px 0;">📱 Web界面 - 点点鼠标就能用</li>
+                <li style="margin: 8px 0;">🔔 实时提醒 - 有符合条件的股票时通知你</li>
+                <li style="margin: 8px 0;">📊 可视化看板 - 收益曲线、胜率统计</li>
+                <li style="margin: 8px 0;">💹 接入QMT - 连接券商账户，实盘交易</li>
+            </ul>
+        </section>
+        
+        <section class="section">
+            <h2>快速开始</h2>
+            <p>如果你想试试我的能力，可以这样说：</p>
+            
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 20px; margin: 15px 0;">
+                <p style="color: #00d4ff; font-style: italic;">"帮我筛选今天的尾盘候选股"</p>
+                <p style="color: #00d4ff; font-style: italic;">"回测一下000001这两个月的表现"</p>
+                <p style="color: #00d4ff; font-style: italic;">"分析一下招商银行的技术指标"</p>
+                <p style="color: #00d4ff; font-style: italic;">"给我搭个Web界面"</p>
+            </div>
+        </section>
+        
+        <footer>
+            <p>Trader Joe - A股尾盘策略助手</p>
+            <p style="margin-top: 10px;">⚠️ 投资有风险，入市需谨慎</p>
+        </footer>
+    </div>
+</body>
+</html>
