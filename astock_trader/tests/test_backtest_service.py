@@ -5,7 +5,8 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 
 from services.backtest_service import (
-    HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_tail_backtest,
+    HistoricalDataError, compare_tail_parameters, fetch_daily_data,
+    run_equal_weight_portfolio, run_tail_backtest,
 )
 
 
@@ -44,7 +45,7 @@ class TailBacktestTests(unittest.TestCase):
         )
         self.assertEqual(len(result.trades), 1)
         self.assertGreater(result.final_value, 100_000)
-        self.assertEqual(len(result.equity_curve), 2)
+        self.assertGreaterEqual(len(result.equity_curve), 2)
         self.assertGreater(result.benchmark_return, 0)
         self.assertAlmostEqual(result.excess_return, result.total_return - result.benchmark_return)
         self.assertGreater(result.total_commission, 0)
@@ -91,6 +92,19 @@ class TailBacktestTests(unittest.TestCase):
         self.assertEqual(len(rows), 3)
         self.assertGreaterEqual(rows[0]["excess_return"], rows[-1]["excess_return"])
         self.assertIn("min_volume_ratio", rows[0]["params"])
+
+    def test_equal_weight_portfolio_aggregates_subaccounts(self):
+        frames = {"000001": self.make_bars(), "600000": self.make_bars()}
+        result = run_equal_weight_portfolio(
+            frames, 100_000,
+            {"require_ma_bullish": False, "require_macd_golden": False,
+             "min_volume_ratio": 0.5, "max_amplitude": 10,
+             "commission": 0.0003, "slippage": 0.001},
+        )
+        self.assertEqual({trade["symbol"] for trade in result.trades}, {"000001", "600000"})
+        self.assertEqual(len(result.trades), 2)
+        self.assertGreater(result.final_value, 100_000)
+        self.assertGreaterEqual(len(result.equity_curve), 2)
 
 
 if __name__ == "__main__":

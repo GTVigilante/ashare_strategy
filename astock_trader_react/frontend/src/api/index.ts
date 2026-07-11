@@ -161,6 +161,14 @@ export const backtestApi = {
     symbols: string[];
   }): Promise<ApiResponse<{ symbol: string; start_date: string; end_date: string; ranking: ParameterComparison[] }>> =>
     api.post('/backtest/compare', data),
+
+  portfolio: (data: {
+    strategy: string;
+    start_date: string;
+    end_date: string;
+    initial_cash?: number;
+    symbols: string[];
+  }): Promise<ApiResponse<BacktestResult>> => api.post('/backtest/portfolio', data),
 };
 
 // ============ 自选股 API ============

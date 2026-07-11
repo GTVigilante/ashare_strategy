@@ -24,7 +24,8 @@ from strategies.base import StrategyRegistry
 from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
 from services.backtest_service import (
-    HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_tail_backtest,
+    HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_equal_weight_portfolio,
+    run_tail_backtest,
 )
 from services.screening_service import ScreeningDataError, screen_tail_candidates
 from services.auth_service import SessionStore, password_matches
@@ -110,6 +111,32 @@ class BacktestRequest(BaseModel):
             raise ValueError("初始资金必须大于 0")
         if len(self.symbols) != 1 or not self.symbols[0].isdigit() or len(self.symbols[0]) != 6:
             raise ValueError("当前版本仅支持一个六位 A 股代码")
+        return self
+
+
+class PortfolioBacktestRequest(BaseModel):
+    strategy_name: str = Field(alias="strategy")
+    start_date: str
+    end_date: str
+    initial_cash: float = 100000
+    symbols: List[str]
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_request(self):
+        try:
+            start = datetime.strptime(self.start_date, "%Y%m%d")
+            end = datetime.strptime(self.end_date, "%Y%m%d")
+        except ValueError as exc:
+            raise ValueError("日期必须使用 YYYYMMDD 格式") from exc
+        self.symbols = list(dict.fromkeys(self.symbols))
+        if start >= end or self.initial_cash <= 0:
+            raise ValueError("日期区间或初始资金无效")
+        if not 2 <= len(self.symbols) <= 10:
+            raise ValueError("组合回测支持 2 至 10 只股票")
+        if any(not symbol.isdigit() or len(symbol) != 6 for symbol in self.symbols):
+            raise ValueError("股票代码必须为六位数字")
         return self
 
 
@@ -399,6 +426,47 @@ def get_backtest_history(
         "page_size": page_size,
         "list": items
     })
+
+
+@app.post("/api/backtest/portfolio")
+def run_portfolio_backtest(request: PortfolioBacktestRequest):
+    if request.strategy_name not in ("tail", "尾盘策略"):
+        raise HTTPException(status_code=422, detail="组合回测当前仅支持尾盘策略")
+    try:
+        config = load_strategy_config()
+        params = {
+            **config.get("strategies", {}).get("tail", {}).get("params", {}),
+            **config.get("backtest", {}),
+        }
+        frames = {
+            symbol: fetch_daily_data(symbol, request.start_date, request.end_date)
+            for symbol in request.symbols
+        }
+        result = run_equal_weight_portfolio(frames, request.initial_cash, params)
+        return success_response({
+            "strategy": request.strategy_name,
+            "symbols": request.symbols,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
+            "initial_cash": request.initial_cash,
+            "final_value": result.final_value,
+            "total_return": result.total_return * 100,
+            "annual_return": result.annual_return * 100,
+            "benchmark_return": result.benchmark_return * 100,
+            "excess_return": result.excess_return * 100,
+            "sharpe_ratio": result.sharpe_ratio,
+            "max_drawdown": result.max_drawdown,
+            "win_rate": result.win_rate * 100,
+            "total_trades": len(result.trades),
+            "profit_factor": result.profit_factor,
+            "max_consecutive_losses": result.max_consecutive_losses,
+            "total_commission": result.total_commission,
+            "equity_curve": result.equity_curve,
+            "trades": result.trades,
+            "model": "fixed_equal_weight_subaccounts",
+        })
+    except HistoricalDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @app.post("/api/backtest/compare")

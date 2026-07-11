@@ -74,6 +74,63 @@ def compare_tail_parameters(
     return sorted(rows, key=lambda row: (row["excess_return"], row["total_return"]), reverse=True)
 
 
+def run_equal_weight_portfolio(
+    frames: dict[str, pd.DataFrame],
+    initial_cash: float,
+    params: dict[str, Any],
+) -> BacktestMetrics:
+    """Combine fixed equal-weight subaccounts into one portfolio curve."""
+    if not frames:
+        raise HistoricalDataError("组合至少需要一只股票")
+    allocation = initial_cash / len(frames)
+    results = {
+        symbol: run_tail_backtest(frame, symbol, allocation, params)
+        for symbol, frame in frames.items()
+    }
+    curves = []
+    all_trades = []
+    for symbol, result in results.items():
+        series = pd.Series(
+            {pd.to_datetime(point["date"]): point["value"] for point in result.equity_curve},
+            name=symbol,
+            dtype=float,
+        )
+        curves.append(series)
+        all_trades.extend(result.trades)
+    combined = pd.concat(curves, axis=1).sort_index().ffill().bfill().sum(axis=1)
+    portfolio_returns = combined.pct_change().dropna()
+    final_value = float(combined.iloc[-1])
+    total_return = final_value / initial_cash - 1
+    elapsed_days = max(1, (combined.index[-1] - combined.index[0]).days)
+    annual_return = (1 + total_return) ** (365 / elapsed_days) - 1 if total_return > -1 else -1
+    peaks = combined.cummax()
+    max_drawdown = float(((peaks - combined) / peaks).max() * 100)
+    sharpe = float(portfolio_returns.mean() / portfolio_returns.std(ddof=1) * np.sqrt(252)) \
+        if len(portfolio_returns) > 1 and portfolio_returns.std(ddof=1) else 0
+    trade_returns = np.array([trade["profit_percent"] / 100 for trade in all_trades])
+    wins, losses = trade_returns[trade_returns > 0], trade_returns[trade_returns < 0]
+    profit_factor = float(wins.sum() / abs(losses.sum())) if len(losses) and abs(losses.sum()) else None
+    consecutive = max_consecutive = 0
+    for trade in sorted(all_trades, key=lambda item: item["sell_date"]):
+        consecutive = consecutive + 1 if trade["profit_percent"] < 0 else 0
+        max_consecutive = max(max_consecutive, consecutive)
+    benchmark_return = float(np.mean([result.benchmark_return for result in results.values()]))
+    return BacktestMetrics(
+        final_value=round(final_value, 2), total_return=total_return,
+        sharpe_ratio=sharpe, max_drawdown=max_drawdown,
+        win_rate=float((trade_returns > 0).mean()) if len(trade_returns) else 0,
+        annual_return=float(annual_return), benchmark_return=benchmark_return,
+        excess_return=float(total_return - benchmark_return), profit_factor=profit_factor,
+        avg_profit=float(trade_returns.mean() * 100) if len(trade_returns) else 0,
+        max_profit=float(trade_returns.max() * 100) if len(trade_returns) else 0,
+        min_profit=float(trade_returns.min() * 100) if len(trade_returns) else 0,
+        max_consecutive_losses=max_consecutive,
+        total_commission=float(sum(result.total_commission for result in results.values())),
+        trades=sorted(all_trades, key=lambda item: (item["buy_date"], item["symbol"])),
+        equity_curve=[{"date": date.strftime("%Y-%m-%d"), "value": round(value, 2)} for date, value in combined.items()],
+    )
+
+
 def _market_symbol(symbol: str) -> str:
     return f"sh{symbol}" if symbol.startswith(("5", "6", "9")) else f"sz{symbol}"
 
@@ -241,6 +298,9 @@ def run_tail_backtest(
         equity.append({"date": next_row["日期"].strftime("%Y-%m-%d"), "value": round(cash, 2)})
 
     returns = np.array([trade["profit_percent"] / 100 for trade in trades])
+    final_date = data.iloc[-1]["日期"].strftime("%Y-%m-%d")
+    if equity[-1]["date"] != final_date:
+        equity.append({"date": final_date, "value": round(cash, 2)})
     values = np.array([point["value"] for point in equity], dtype=float)
     peaks = np.maximum.accumulate(values)
     drawdown = np.max((peaks - values) / peaks) if len(values) else 0

@@ -42,6 +42,7 @@ export default function Backtest() {
   const [currentResult, setCurrentResult] = useState<BacktestResult | null>(null);
   const [comparison, setComparison] = useState<ParameterComparison[]>([]);
   const [comparing, setComparing] = useState(false);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -104,6 +105,35 @@ export default function Backtest() {
       if (detail) message.error(detail);
     } finally {
       setComparing(false);
+    }
+  };
+
+  const handlePortfolio = async () => {
+    try {
+      const values = await form.validateFields();
+      const symbols = String(values.portfolio_symbols || '')
+        .split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+      if (symbols.length < 2 || symbols.length > 10 || symbols.some((item) => !/^\d{6}$/.test(item))) {
+        message.error('请输入 2 至 10 个六位股票代码');
+        return;
+      }
+      setPortfolioLoading(true);
+      const res = await backtestApi.portfolio({
+        strategy: values.strategy,
+        start_date: values.dates[0].format('YYYYMMDD'),
+        end_date: values.dates[1].format('YYYYMMDD'),
+        initial_cash: values.initial_cash || 100000,
+        symbols,
+      });
+      if (res.code === 0) {
+        setCurrentResult(res.data);
+        message.success('组合回测完成');
+      }
+    } catch (error) {
+      const detail = (error as any)?.response?.data?.detail;
+      if (detail) message.error(detail);
+    } finally {
+      setPortfolioLoading(false);
     }
   };
 
@@ -237,6 +267,7 @@ export default function Backtest() {
                   dayjs().subtract(1, 'day'),
                 ],
                 initial_cash: 100000,
+                portfolio_symbols: '000001,600000,600036',
               }}
             >
               <Form.Item
@@ -298,6 +329,18 @@ export default function Backtest() {
               <Button block onClick={handleCompare} loading={comparing}>
                 对比三组参数
               </Button>
+
+              <Form.Item
+                label="组合股票"
+                name="portfolio_symbols"
+                extra="用逗号分隔 2-10 个代码；每只股票分配相同初始资金"
+                style={{ marginTop: 16 }}
+              >
+                <Input placeholder="000001,600000,600036" />
+              </Form.Item>
+              <Button block onClick={handlePortfolio} loading={portfolioLoading}>
+                运行等权组合回测
+              </Button>
             </Form>
           </Card>
 
@@ -332,6 +375,11 @@ export default function Backtest() {
             ) : currentResult ? (
               <>
                 {/* 核心指标 */}
+                {currentResult.model === 'fixed_equal_weight_subaccounts' && (
+                  <Tag color="purple" style={{ marginBottom: 16 }}>
+                    等权组合：{currentResult.symbols?.join('、')}
+                  </Tag>
+                )}
                 <Row gutter={16}>
                   <Col span={6}>
                     <Statistic

@@ -92,7 +92,7 @@ export interface KLineData {
 // ============ 回测 ============
 
 export interface BacktestTrade {
-  id: number;
+  id?: number;
   symbol: string;
   name: string;
   buy_date: string;
@@ -112,7 +112,7 @@ export interface EquityPoint {
 }
 
 export interface BacktestResult {
-  id: number;
+  id?: number;
   strategy: string;
   start_date: string;
   end_date: string;
@@ -135,6 +135,8 @@ export interface BacktestResult {
   equity_curve: EquityPoint[];
   trades: BacktestTrade[];
   created_at?: string;
+  symbols?: string[];
+  model?: string;
 }
 
 export interface ParameterComparison {
