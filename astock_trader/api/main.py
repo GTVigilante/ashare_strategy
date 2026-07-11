@@ -54,6 +54,21 @@ sessions = SessionStore(SESSION_TTL_SECONDS)
 paper_engine = PaperTradingEngine()
 
 
+def tail_runtime_params(include_backtest: bool = False) -> Dict[str, Any]:
+    """Resolve one authoritative parameter set for every tail-strategy workflow."""
+    config = load_strategy_config()
+    params = dict(config.get("strategies", {}).get("tail", {}).get("params", {}))
+    strategy = StrategyRepository(db).get_by_name("尾盘策略")
+    if strategy:
+        if not strategy.enabled:
+            raise HTTPException(status_code=422, detail="尾盘策略当前已停用，请先在配置页启用")
+        if isinstance(strategy.params, dict):
+            params.update(strategy.params)
+    if include_backtest:
+        params.update(config.get("backtest", {}))
+    return params
+
+
 def bearer_token(request: Request) -> Optional[str]:
     authorization = request.headers.get("Authorization", "")
     scheme, _, token = authorization.partition(" ")
@@ -262,6 +277,22 @@ def update_strategy(name: str, config: StrategyConfigUpdate):
     return success_response(None, "策略更新成功")
 
 
+@app.post("/api/strategies/{name}/toggle")
+def toggle_strategy(name: str):
+    """切换策略启用状态，同时保留现有参数。"""
+    repo = StrategyRepository(db)
+    strategy = repo.get_by_name(name)
+    if not strategy:
+        strategy_class = StrategyRegistry.get(name)
+        if not strategy_class:
+            raise HTTPException(status_code=404, detail="策略不存在")
+        instance = strategy_class()
+        strategy = repo.create(instance.name, instance.get_description(), instance.params)
+    enabled = not strategy.enabled
+    repo.update(name, strategy.params, enabled=enabled)
+    return success_response({"enabled": enabled}, "策略已启用" if enabled else "策略已停用")
+
+
 # ============== 自选股API ==============
 
 @app.get("/api/watch")
@@ -317,7 +348,7 @@ def screen_stocks(
             raise HTTPException(status_code=404, detail="策略不存在")
         
         screen_date = date or datetime.now().strftime("%Y%m%d")
-        configured = load_strategy_config().get("strategies", {}).get("tail", {}).get("params", {})
+        configured = tail_runtime_params()
         result = screen_tail_candidates(screen_date, configured)
         return success_response({
             "date": screen_date,
@@ -348,9 +379,7 @@ def run_backtest(request: BacktestRequest):
             raise HTTPException(status_code=404, detail="策略不存在")
         
         symbol = request.symbols[0]
-        configured = load_strategy_config().get("strategies", {}).get("tail", {}).get("params", {})
-        backtest_config = load_strategy_config().get("backtest", {})
-        params = {**configured, **backtest_config}
+        params = tail_runtime_params(include_backtest=True)
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         result = run_tail_backtest(frame, symbol, request.initial_cash, params)
         extended_metrics = {
@@ -447,11 +476,7 @@ def run_portfolio_backtest(request: PortfolioBacktestRequest):
     if request.strategy_name not in ("tail", "尾盘策略"):
         raise HTTPException(status_code=422, detail="组合回测当前仅支持尾盘策略")
     try:
-        config = load_strategy_config()
-        params = {
-            **config.get("strategies", {}).get("tail", {}).get("params", {}),
-            **config.get("backtest", {}),
-        }
+        params = tail_runtime_params(include_backtest=True)
         frames = {
             symbol: fetch_daily_data(symbol, request.start_date, request.end_date)
             for symbol in request.symbols
@@ -490,11 +515,7 @@ def compare_backtests(request: BacktestRequest):
         raise HTTPException(status_code=422, detail="参数对比当前仅支持尾盘策略")
     try:
         symbol = request.symbols[0]
-        config = load_strategy_config()
-        params = {
-            **config.get("strategies", {}).get("tail", {}).get("params", {}),
-            **config.get("backtest", {}),
-        }
+        params = tail_runtime_params(include_backtest=True)
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         rows = compare_tail_parameters(frame, symbol, request.initial_cash, params)
         return success_response({
@@ -513,11 +534,7 @@ def walk_forward_backtest(request: BacktestRequest):
         raise HTTPException(status_code=422, detail="滚动验证当前仅支持尾盘策略")
     try:
         symbol = request.symbols[0]
-        config = load_strategy_config()
-        params = {
-            **config.get("strategies", {}).get("tail", {}).get("params", {}),
-            **config.get("backtest", {}),
-        }
+        params = tail_runtime_params(include_backtest=True)
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         return success_response(walk_forward_validate(frame, symbol, request.initial_cash, params))
     except HistoricalDataError as e:
@@ -530,11 +547,7 @@ def multi_walk_forward_backtest(request: BacktestRequest):
         raise HTTPException(status_code=422, detail="多窗口验证当前仅支持尾盘策略")
     try:
         symbol = request.symbols[0]
-        config = load_strategy_config()
-        params = {
-            **config.get("strategies", {}).get("tail", {}).get("params", {}),
-            **config.get("backtest", {}),
-        }
+        params = tail_runtime_params(include_backtest=True)
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         return success_response(multi_window_walk_forward(frame, symbol, request.initial_cash, params))
     except HistoricalDataError as e:
@@ -546,11 +559,7 @@ def approve_paper_strategy(request: BacktestRequest):
     """后端重新诊断策略，达标后签发一小时模拟盘准入。"""
     try:
         symbol = request.symbols[0]
-        config = load_strategy_config()
-        params = {
-            **config.get("strategies", {}).get("tail", {}).get("params", {}),
-            **config.get("backtest", {}),
-        }
+        params = tail_runtime_params(include_backtest=True)
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         report = multi_window_walk_forward(frame, symbol, request.initial_cash, params)
         diagnostic = report["diagnostic"]
