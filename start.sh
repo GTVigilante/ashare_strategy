@@ -75,6 +75,16 @@ prepare_dependencies() {
   fi
 }
 
+check_ports() {
+  for port in 8000 8888; do
+    if command_exists lsof && lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      info "端口 $port 已被占用："
+      lsof -nP -iTCP:"$port" -sTCP:LISTEN >&2 || true
+      fail "请先停止占用端口 $port 的旧服务，再重新运行 ./start.sh"
+    fi
+  done
+}
+
 if [ "$MODE" != "start" ] && [ "$MODE" != "--check" ] && [ "$MODE" != "--setup-only" ]; then
   fail "用法: ./start.sh [--check|--setup-only]"
 fi
@@ -93,6 +103,8 @@ if [ "$MODE" = "--setup-only" ]; then
   info "初始化完成；运行 ./start.sh 启动系统"
   exit 0
 fi
+
+check_ports
 
 BACKEND_PID=''
 FRONTEND_PID=''

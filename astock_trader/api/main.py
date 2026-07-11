@@ -219,21 +219,21 @@ def get_strategy(name: str):
         if name in StrategyRegistry.list_strategies():
             strategy_class = StrategyRegistry.get(name)
             instance = strategy_class()
-            return {
+            return success_response({
                 "name": instance.name,
                 "description": instance.get_description(),
                 "params": instance.params,
                 "enabled": True
-            }
+            })
         raise HTTPException(status_code=404, detail="策略不存在")
     
-    return {
+    return success_response({
         "id": strategy.id,
         "name": strategy.name,
         "description": strategy.description,
         "params": strategy.params,
         "enabled": strategy.enabled
-    }
+    })
 
 
 @app.put("/api/strategies/{name}")
@@ -256,7 +256,7 @@ def update_strategy(name: str, config: StrategyConfigUpdate):
             params=config.params
         )
     
-    return {"message": "策略更新成功"}
+    return success_response(None, "策略更新成功")
 
 
 # ============== 自选股API ==============
@@ -284,7 +284,7 @@ def add_watch(stock: StockWatchAdd):
     repo = StockWatchRepository(db)
     try:
         result = repo.add(stock.symbol, stock.name, stock.notes)
-        return {"message": "添加成功", "symbol": result.symbol}
+        return success_response({"symbol": result.symbol}, "添加成功")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -296,7 +296,7 @@ def remove_watch(symbol: str):
     success = repo.remove(symbol)
     if not success:
         raise HTTPException(status_code=404, detail="股票不存在")
-    return {"message": "删除成功"}
+    return success_response(None, "删除成功")
 
 
 # ============== 选股API ==============
@@ -586,6 +586,7 @@ def get_dashboard():
         strategies = strategy_repo.get_all()
         watch_stocks = watch_repo.get_all()
         recent_backtests = backtest_repo.get_history(limit=10)
+        paper = paper_engine.status()
         
         # 计算收益（如果有回测记录）
         total_return = 0
@@ -594,15 +595,21 @@ def get_dashboard():
             latest = recent_backtests[0]
             total_return = float(latest.total_return) if latest.total_return else 0
         
+        positions = [{
+            "symbol": symbol, "name": "", "quantity": int(position["quantity"]),
+            "cost": position["cost"], "price": position["last_price"],
+            "profit": (position["last_price"] - position["cost"]) * position["quantity"],
+            "profit_rate": (position["last_price"] / position["cost"] - 1) * 100 if position["cost"] else 0,
+        } for symbol, position in paper["positions"].items()]
         data = {
             "account": {
-                "total_assets": 100000,
-                "cash": 80000,
-                "stocks_value": 20000,
-                "today_profit": 0,
-                "today_profit_rate": 0,
+                "total_assets": paper["equity"],
+                "cash": paper["cash"],
+                "stocks_value": paper["equity"] - paper["cash"],
+                "today_profit": paper["equity"] - paper_engine.account.day_start_equity,
+                "today_profit_rate": paper["daily_return"] * 100,
             },
-            "positions": [],
+            "positions": positions,
             "signals": {
                 "pending": 0,
                 "today_buy": 0,
@@ -610,14 +617,14 @@ def get_dashboard():
             },
             "backtest": {
                 "latest_id": recent_backtests[0].id if recent_backtests else 0,
-                "total_return": total_return,
+                "total_return": total_return * 100,
                 "max_drawdown": float(recent_backtests[0].max_drawdown) if recent_backtests and recent_backtests[0].max_drawdown else 0,
-                "win_rate": float(recent_backtests[0].win_rate) if recent_backtests and recent_backtests[0].win_rate else 0,
+                "win_rate": float(recent_backtests[0].win_rate) * 100 if recent_backtests and recent_backtests[0].win_rate else 0,
                 "sharpe_ratio": recent_backtests[0].sharpe_ratio if recent_backtests else 0,
             },
             "watchlist_count": len(watch_stocks),
-            "strategy_count": len(strategies),
-            "total_return": total_return,
+            "strategy_count": len(StrategyRegistry.list_strategies()),
+            "total_return": total_return * 100,
             "today_return": 0,
             "win_rate": 0.65,
         }
@@ -656,10 +663,7 @@ def get_signals(
 ):
     """获取交易信号"""
     # TODO: 从数据库获取信号
-    return {
-        "signals": [],
-        "message": "功能待实现"
-    }
+    return success_response({"total": 0, "page": 1, "page_size": limit, "list": []}, "暂无交易信号")
 
 
 # ============== 订单API ==============
@@ -670,7 +674,7 @@ def list_orders(limit: int = Query(100, ge=1, le=500)):
     repo = OrderRepository(db)
     orders = repo.get_all(limit)
     
-    return [
+    data = [
         {
             "id": o.id,
             "order_id": o.order_id,
@@ -685,6 +689,7 @@ def list_orders(limit: int = Query(100, ge=1, le=500)):
         }
         for o in orders
     ]
+    return success_response({"total": len(data), "page": 1, "page_size": limit, "list": data})
 
 
 # ============== 健康检查 ==============

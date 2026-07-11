@@ -144,8 +144,8 @@ export default function Dashboard() {
       <Title level={2}>📊 交易仪表盘</Title>
 
       {/* 账户概览 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="总资产"
@@ -155,7 +155,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="可用资金"
@@ -165,7 +165,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="持仓市值"
@@ -174,7 +174,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card
             style={{
               background:
@@ -201,8 +201,8 @@ export default function Dashboard() {
       </Row>
 
       {/* 性能指标 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="累计收益率"
@@ -214,7 +214,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="胜率"
@@ -225,7 +225,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="夏普比率"
@@ -235,7 +235,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic
               title="最大回撤"
@@ -250,8 +250,8 @@ export default function Dashboard() {
       </Row>
 
       {/* 持仓和今日选股 */}
-      <Row gutter={16}>
-        <Col span={12}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={12}>
           <Card title="当前持仓" extra={<Tag>{data?.positions.length || 0} 只</Tag>}>
             <Table
               columns={positionColumns}
@@ -263,7 +263,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col span={12}>
+        <Col xs={24} xl={12}>
           <Card
             title="今日候选"
             extra={
