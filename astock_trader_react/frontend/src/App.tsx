@@ -108,7 +108,7 @@ function App() {
             <Text type="secondary">请输入访问密码</Text>
           </div>
 
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             <input
               type="password"
               className="login-input"
@@ -189,7 +189,7 @@ function App() {
         placement="left"
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
-        width={280}
+        size={280}
         className="mobile-drawer"
       >
         <Menu
@@ -237,11 +237,11 @@ function App() {
 
       {/* 浮窗帮助按钮 */}
       <a
-        href="/docs/guide.html"
+        href="https://github.com/GTVigilante/ashare_strategy#readme"
         target="_blank"
         rel="noopener noreferrer"
         className="help-float-btn"
-        title="使用指南"
+        title="项目文档"
       >
         <QuestionCircleOutlined style={{ fontSize: 24 }} />
       </a>

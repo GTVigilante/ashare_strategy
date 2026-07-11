@@ -28,6 +28,7 @@ import dayjs from 'dayjs';
 
 import { screenApi, watchApi } from '../api';
 import type { StockCandidate } from '../types/api';
+import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Text } = Typography;
 
@@ -52,8 +53,7 @@ export default function Screening() {
       }
     } catch (error) {
       console.error('筛选失败:', error);
-      const detail = (error as any)?.response?.data?.detail;
-      message.error(detail || '筛选失败，请稍后重试');
+      message.error(apiErrorMessage(error, '筛选失败，请稍后重试'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function Screening() {
         message.success(`已添加 ${stock.name} 到自选`);
       }
     } catch (error) {
-      message.error('添加失败');
+      message.error(apiErrorMessage(error, '添加失败'));
     }
   };
 
@@ -82,7 +82,7 @@ export default function Screening() {
       title: '股票',
       key: 'stock',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Tag color="blue">{record.symbol}</Tag>
           <Text strong>{record.name}</Text>
         </Space>
@@ -189,8 +189,6 @@ export default function Screening() {
                 style={{ width: 150 }}
                 options={[
                   { label: '尾盘策略', value: '尾盘策略' },
-                  { label: '动量策略', value: '动量策略' },
-                  { label: '突破策略', value: '突破策略' },
                 ]}
               />
               <Button
@@ -232,7 +230,7 @@ export default function Screening() {
       <Alert
         type="info"
         showIcon
-        message="首次筛选需要下载候选股历史行情，可能耗时 10-60 秒；后续相同区间会命中本地缓存。"
+        title="首次筛选需要下载候选股历史行情，可能耗时 10-60 秒；后续相同区间会命中本地缓存。"
         style={{ marginBottom: 16 }}
       />
 

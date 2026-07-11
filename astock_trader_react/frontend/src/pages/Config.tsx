@@ -1,5 +1,5 @@
 // 配置文件
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Form,
@@ -15,24 +15,19 @@ import {
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { strategyApi } from '../api';
 import type { Strategy } from '../types/api';
+import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Paragraph } = Typography;
 type ConfigValues = Strategy['params'] & { enabled: boolean };
 
 export default function Config() {
   const [loading, setLoading] = useState(false);
-  const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchStrategy();
-  }, []);
-
-  const fetchStrategy = async () => {
+  const fetchStrategy = useCallback(async () => {
     try {
       const res = await strategyApi.get('尾盘策略');
       if (res.code === 0) {
-        setStrategy(res.data);
         form.setFieldsValue({
           ...res.data.params,
           enabled: res.data.enabled,
@@ -42,7 +37,11 @@ export default function Config() {
       console.error('获取策略失败:', error);
       message.error('策略配置加载失败，请检查服务连接');
     }
-  };
+  }, [form]);
+
+  useEffect(() => {
+    fetchStrategy();
+  }, [fetchStrategy]);
 
   const handleSave = async (values: ConfigValues) => {
     try {
@@ -54,7 +53,7 @@ export default function Config() {
         fetchStrategy();
       }
     } catch (error) {
-      message.error('保存失败');
+      message.error(apiErrorMessage(error, '保存失败'));
     } finally {
       setLoading(false);
     }

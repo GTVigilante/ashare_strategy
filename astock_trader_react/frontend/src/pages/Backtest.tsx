@@ -33,7 +33,7 @@ import {
 import dayjs from 'dayjs';
 
 import { backtestApi } from '../api';
-import type { BacktestResult, BacktestTrade, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
+import type { BacktestResult, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -88,7 +88,7 @@ export default function Backtest() {
       } else {
         message.error(res.message);
       }
-    } catch (error) {
+    } catch {
       message.error('回测失败');
     } finally {
       setLoading(false);
@@ -189,7 +189,7 @@ export default function Backtest() {
       title: '股票',
       key: 'stock',
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Tag color="blue">{record.symbol}</Tag>
           <Text>{record.name}</Text>
         </Space>
@@ -587,7 +587,7 @@ export default function Backtest() {
           <Alert
             type={multiWalk.diagnostic.verdict === 'promising' ? 'success' : multiWalk.diagnostic.verdict === 'caution' ? 'warning' : 'error'}
             showIcon
-            message={`策略诊断：${multiWalk.diagnostic.label}`}
+            title={`策略诊断：${multiWalk.diagnostic.label}`}
             description={multiWalk.diagnostic.disclaimer}
             style={{ marginBottom: 16 }}
           />

@@ -22,6 +22,7 @@ import {
 
 import { watchApi } from '../api';
 import type { WatchStock } from '../types/api';
+import { apiErrorMessage } from '../utils/apiError';
 
 const { Title } = Typography;
 
@@ -59,7 +60,7 @@ export default function Watchlist() {
         fetchStocks();
       }
     } catch (error) {
-      message.error('添加失败');
+      message.error(apiErrorMessage(error, '添加失败'));
     }
   };
 
@@ -71,7 +72,7 @@ export default function Watchlist() {
         fetchStocks();
       }
     } catch (error) {
-      message.error('删除失败');
+      message.error(apiErrorMessage(error, '删除失败'));
     }
   };
 

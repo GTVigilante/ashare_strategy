@@ -18,7 +18,6 @@ import {
 import {
   DollarOutlined,
   RiseOutlined,
-  FallOutlined,
   TrophyOutlined,
   ThunderboltOutlined,
   SafetyOutlined,
@@ -29,7 +28,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { dashboardApi } from '../api';
-import type { DashboardData, Position, StockCandidate } from '../types/api';
+import type { DashboardData, StockCandidate } from '../types/api';
 
 const { Title, Text } = Typography;
 
@@ -112,7 +111,7 @@ export default function Dashboard() {
       dataIndex: 'symbol',
       key: 'symbol',
       render: (text, record) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Tag color="gold">{text}</Tag>
           <span style={{ fontSize: 12 }}>{record.name}</span>
         </Space>
@@ -164,7 +163,7 @@ export default function Dashboard() {
       <Alert
         type="info"
         showIcon
-        message="当前为研究与模拟模式"
+        title="当前为研究与模拟模式"
         description="行情来自 AKShare（东方财富主源、失败时切换新浪）；模拟盘不连接券商，策略需通过样本外诊断才可申请准入。"
         style={{ marginBottom: 20 }}
       />

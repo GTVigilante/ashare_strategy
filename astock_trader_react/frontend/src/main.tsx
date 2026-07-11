@@ -4,10 +4,11 @@ import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider theme={{
+    <ConfigProvider locale={zhCN} theme={{
       token: {
         colorPrimary: '#2563eb', colorInfo: '#2563eb', borderRadius: 10,
         colorBgLayout: '#f4f7fb', colorText: '#152238', fontSize: 14,

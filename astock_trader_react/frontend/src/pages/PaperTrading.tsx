@@ -34,7 +34,7 @@ export default function PaperTrading() {
   };
   return <div>
     <Title level={2}>🧪 模拟盘</Title>
-    <Alert type="warning" showIcon message="仅为内存模拟账户，不连接券商；服务重启后账户重置。价格由用户输入，仅用于验证风控流程。" style={{ marginBottom: 16 }} />
+    <Alert type="warning" showIcon title="仅为内存模拟账户，不连接券商；服务重启后账户重置。价格由用户输入，仅用于验证风控流程。" style={{ marginBottom: 16 }} />
     <Row gutter={16}>
       <Col xs={24} xl={8}><Card title="策略准入与订单">
         <Form form={form} layout="vertical" onFinish={order} initialValues={{ symbol: '000001', side: 'buy', quantity: 100 }}>
