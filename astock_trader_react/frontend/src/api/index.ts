@@ -16,6 +16,8 @@ import type {
   Signal,
   Order,
   DashboardData,
+  PaperOrder,
+  PaperStatus,
 } from '../types/api';
 
 // API 基础配置
@@ -268,11 +270,11 @@ export const dashboardApi = {
 };
 
 export const paperApi = {
-  approve: (data: { strategy: string; start_date: string; end_date: string; initial_cash: number; symbols: string[] }) =>
+  approve: (data: { strategy: string; start_date: string; end_date: string; initial_cash: number; symbols: string[] }): Promise<ApiResponse<{ approval_token: string; expires_in: number; symbol: string }>> =>
     api.post('/paper/approve', data),
-  status: () => api.get('/paper/status'),
+  status: (): Promise<ApiResponse<PaperStatus>> => api.get('/paper/status'),
   order: (data: { approval_token: string; symbol: string; side: 'buy' | 'sell'; quantity: number; price: number }) =>
-    api.post('/paper/orders', data),
+    api.post('/paper/orders', data) as Promise<ApiResponse<PaperOrder>>,
 };
 
 export default api;

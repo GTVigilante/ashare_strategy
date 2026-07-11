@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Input, InputNumber, Row, Select, Statistic, Table, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { paperApi } from '../api';
+import type { PaperStatus } from '../types/api';
+import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Text } = Typography;
 
 export default function PaperTrading() {
   const [approval, setApproval] = useState('');
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<PaperStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-  const refresh = async () => { const r: any = await paperApi.status(); if (r.code === 0) setStatus(r.data); };
+  const refresh = async () => { const r = await paperApi.status(); if (r.code === 0) setStatus(r.data); };
   useEffect(() => { refresh().catch(() => undefined); }, []);
 
   const approve = async () => {
@@ -18,9 +20,9 @@ export default function PaperTrading() {
     if (!/^\d{6}$/.test(symbol || '')) return message.error('请输入六位股票代码');
     setLoading(true);
     try {
-      const r: any = await paperApi.approve({ strategy: '尾盘策略', start_date: dayjs().subtract(18, 'month').format('YYYYMMDD'), end_date: dayjs().subtract(1, 'day').format('YYYYMMDD'), initial_cash: 100000, symbols: [symbol] });
+      const r = await paperApi.approve({ strategy: '尾盘策略', start_date: dayjs().subtract(18, 'month').format('YYYYMMDD'), end_date: dayjs().subtract(1, 'day').format('YYYYMMDD'), initial_cash: 100000, symbols: [symbol] });
       if (r.code === 0) { setApproval(r.data.approval_token); message.success('策略已通过诊断，准入有效 1 小时'); }
-    } catch (e) { message.error((e as any)?.response?.data?.detail || '策略未通过准入'); }
+    } catch (e) { message.error(apiErrorMessage(e, '策略未通过准入')); }
     finally { setLoading(false); }
   };
   const order = async (values: any) => {
@@ -28,7 +30,7 @@ export default function PaperTrading() {
     try {
       await paperApi.order({ ...values, approval_token: approval });
       message.success('模拟成交'); await refresh();
-    } catch (e) { message.error((e as any)?.response?.data?.detail || '模拟订单被拒绝'); }
+    } catch (e) { message.error(apiErrorMessage(e, '模拟订单被拒绝')); }
   };
   return <div>
     <Title level={2}>🧪 模拟盘</Title>

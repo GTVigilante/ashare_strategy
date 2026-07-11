@@ -299,3 +299,26 @@ export interface DashboardData {
   };
   watchlist_count: number;
 }
+
+export interface PaperOrder {
+  id: number;
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  amount: number;
+  created_at: number;
+  status: 'filled';
+  mode: 'paper';
+}
+
+export interface PaperStatus {
+  cash: number;
+  equity: number;
+  peak_equity: number;
+  drawdown: number;
+  daily_return: number;
+  positions: Record<string, { quantity: number; cost: number; last_price: number }>;
+  orders: PaperOrder[];
+  limits: { max_position: number; daily_loss: number; max_drawdown: number };
+}
