@@ -4,7 +4,9 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
+from services.backtest_service import (
+    HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_tail_backtest,
+)
 
 
 class TailBacktestTests(unittest.TestCase):
@@ -79,6 +81,16 @@ class TailBacktestTests(unittest.TestCase):
         self.assertEqual(second.attrs["source"], "cache")
         self.assertEqual(first.iloc[0]["换手率"], 4.0)
         self.assertEqual(calls, {"primary": 1, "fallback": 1})
+
+    def test_parameter_comparison_is_ranked_and_named(self):
+        rows = compare_tail_parameters(
+            self.make_bars(), "000001", 100_000,
+            {"commission": 0.0003, "slippage": 0.001},
+        )
+        self.assertEqual({row["name"] for row in rows}, {"标准", "严格", "宽松"})
+        self.assertEqual(len(rows), 3)
+        self.assertGreaterEqual(rows[0]["excess_return"], rows[-1]["excess_return"])
+        self.assertIn("min_volume_ratio", rows[0]["params"])
 
 
 if __name__ == "__main__":

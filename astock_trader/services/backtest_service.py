@@ -35,6 +35,45 @@ class HistoricalDataError(RuntimeError):
     pass
 
 
+def tail_parameter_variants(base: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Return named, deterministic parameter sets for like-for-like comparison."""
+    standard = dict(base)
+    strict = {**base, "min_volume_ratio": 1.5, "max_amplitude": 3.0,
+              "require_ma_bullish": True, "require_macd_golden": True}
+    relaxed = {**base, "min_volume_ratio": 1.0, "max_amplitude": 8.0,
+               "require_ma_bullish": False, "require_macd_golden": False}
+    return [("标准", standard), ("严格", strict), ("宽松", relaxed)]
+
+
+def compare_tail_parameters(
+    frame: pd.DataFrame,
+    symbol: str,
+    initial_cash: float,
+    base: dict[str, Any],
+) -> list[dict[str, Any]]:
+    rows = []
+    for name, params in tail_parameter_variants(base):
+        result = run_tail_backtest(frame, symbol, initial_cash, params)
+        rows.append({
+            "name": name,
+            "params": {
+                key: params.get(key) for key in (
+                    "min_volume_ratio", "max_amplitude", "require_ma_bullish", "require_macd_golden"
+                )
+            },
+            "total_return": result.total_return * 100,
+            "annual_return": result.annual_return * 100,
+            "benchmark_return": result.benchmark_return * 100,
+            "excess_return": result.excess_return * 100,
+            "max_drawdown": result.max_drawdown,
+            "win_rate": result.win_rate * 100,
+            "total_trades": len(result.trades),
+            "profit_factor": result.profit_factor,
+            "total_commission": result.total_commission,
+        })
+    return sorted(rows, key=lambda row: (row["excess_return"], row["total_return"]), reverse=True)
+
+
 def _market_symbol(symbol: str) -> str:
     return f"sh{symbol}" if symbol.startswith(("5", "6", "9")) else f"sz{symbol}"
 

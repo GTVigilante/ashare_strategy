@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 import { Line } from '@ant-design/charts';
 
 import { backtestApi } from '../api';
-import type { BacktestResult, BacktestTrade } from '../types/api';
+import type { BacktestResult, BacktestTrade, ParameterComparison } from '../types/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -40,6 +40,8 @@ export default function Backtest() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<BacktestResult[]>([]);
   const [currentResult, setCurrentResult] = useState<BacktestResult | null>(null);
+  const [comparison, setComparison] = useState<ParameterComparison[]>([]);
+  const [comparing, setComparing] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -82,6 +84,26 @@ export default function Backtest() {
       message.error('回测失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompare = async () => {
+    try {
+      const values = await form.validateFields();
+      setComparing(true);
+      const res = await backtestApi.compare({
+        strategy: values.strategy,
+        start_date: values.dates[0].format('YYYYMMDD'),
+        end_date: values.dates[1].format('YYYYMMDD'),
+        initial_cash: values.initial_cash || 100000,
+        symbols: [values.symbol],
+      });
+      if (res.code === 0) setComparison(res.data.ranking || []);
+    } catch (error) {
+      const detail = (error as any)?.response?.data?.detail;
+      if (detail) message.error(detail);
+    } finally {
+      setComparing(false);
     }
   };
 
@@ -273,6 +295,9 @@ export default function Backtest() {
                   开始回测
                 </Button>
               </Form.Item>
+              <Button block onClick={handleCompare} loading={comparing}>
+                对比三组参数
+              </Button>
             </Form>
           </Card>
 
@@ -414,6 +439,32 @@ export default function Backtest() {
           </Card>
         </Col>
       </Row>
+
+      {comparison.length > 0 && (
+        <Card title="参数对比排行榜" style={{ marginTop: 16 }}>
+          <Table
+            rowKey="name"
+            pagination={false}
+            dataSource={comparison}
+            columns={[
+              { title: '排名', render: (_value, _record, index) => index + 1 },
+              { title: '参数组', dataIndex: 'name' },
+              { title: '总收益', dataIndex: 'total_return', render: (v) => `${v.toFixed(2)}%` },
+              { title: '超额收益', dataIndex: 'excess_return', render: (v) => `${v.toFixed(2)}%` },
+              { title: '最大回撤', dataIndex: 'max_drawdown', render: (v) => `${v.toFixed(2)}%` },
+              { title: '胜率', dataIndex: 'win_rate', render: (v) => `${v.toFixed(1)}%` },
+              { title: '交易数', dataIndex: 'total_trades' },
+              { title: '盈亏比', dataIndex: 'profit_factor', render: (v) => v == null ? '—' : v.toFixed(2) },
+              {
+                title: '关键参数',
+                dataIndex: 'params',
+                render: (params) => `量比≥${params.min_volume_ratio}，振幅≤${params.max_amplitude}%`,
+              },
+            ]}
+          />
+          <Text type="secondary">排行榜按超额收益排序。参数比较使用完全相同的股票、区间、初始资金和行情数据。</Text>
+        </Card>
+      )}
     </div>
   );
 }

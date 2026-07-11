@@ -8,6 +8,7 @@ import type {
   StockIndicators,
   KLineData,
   BacktestResult,
+  ParameterComparison,
   PageResponse,
   WatchStock,
   Signal,
@@ -151,6 +152,15 @@ export const backtestApi = {
   // 获取回测详情
   get: (id: number): Promise<ApiResponse<BacktestResult>> =>
     api.get(`/backtest/${id}`),
+
+  compare: (data: {
+    strategy: string;
+    start_date: string;
+    end_date: string;
+    initial_cash?: number;
+    symbols: string[];
+  }): Promise<ApiResponse<{ symbol: string; start_date: string; end_date: string; ranking: ParameterComparison[] }>> =>
+    api.post('/backtest/compare', data),
 };
 
 // ============ 自选股 API ============

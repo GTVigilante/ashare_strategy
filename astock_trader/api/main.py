@@ -23,7 +23,9 @@ from models.database import (
 from strategies.base import StrategyRegistry
 from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
-from services.backtest_service import HistoricalDataError, fetch_daily_data, run_tail_backtest
+from services.backtest_service import (
+    HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_tail_backtest,
+)
 from services.screening_service import ScreeningDataError, screen_tail_candidates
 from services.auth_service import SessionStore, password_matches
 from config.settings import APP_PASSWORD, SESSION_TTL_SECONDS, CORS_ORIGINS, API_HOST, API_PORT
@@ -397,6 +399,30 @@ def get_backtest_history(
         "page_size": page_size,
         "list": items
     })
+
+
+@app.post("/api/backtest/compare")
+def compare_backtests(request: BacktestRequest):
+    """在同一份行情上比较标准、严格和宽松参数。"""
+    if request.strategy_name not in ("tail", "尾盘策略"):
+        raise HTTPException(status_code=422, detail="参数对比当前仅支持尾盘策略")
+    try:
+        symbol = request.symbols[0]
+        config = load_strategy_config()
+        params = {
+            **config.get("strategies", {}).get("tail", {}).get("params", {}),
+            **config.get("backtest", {}),
+        }
+        frame = fetch_daily_data(symbol, request.start_date, request.end_date)
+        rows = compare_tail_parameters(frame, symbol, request.initial_cash, params)
+        return success_response({
+            "symbol": symbol,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
+            "ranking": rows,
+        })
+    except HistoricalDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 # ============== Dashboard API ==============

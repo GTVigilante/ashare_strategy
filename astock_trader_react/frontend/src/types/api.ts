@@ -137,6 +137,20 @@ export interface BacktestResult {
   created_at?: string;
 }
 
+export interface ParameterComparison {
+  name: string;
+  params: Record<string, number | boolean | undefined>;
+  total_return: number;
+  annual_return: number;
+  benchmark_return: number;
+  excess_return: number;
+  max_drawdown: number;
+  win_rate: number;
+  total_trades: number;
+  profit_factor?: number | null;
+  total_commission: number;
+}
+
 // ============ 自选股 ============
 
 export interface WatchStock {
