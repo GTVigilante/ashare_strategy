@@ -77,9 +77,8 @@ export default function Config() {
             min_price: 4.0,
             max_price: 30.0,
             min_volume_ratio: 1.2,
-            gap_up_threshold: 1.0,
-            low_open_stop: 2.0,
-            stop_loss: 3.0,
+            require_ma_bullish: true,
+            require_macd_golden: true,
           }}
         >
           {/* 基本信息 */}
@@ -119,21 +118,20 @@ export default function Config() {
             </Form.Item>
           </Space>
 
-          <Divider>卖出规则</Divider>
+          <Divider>技术过滤</Divider>
 
           <Space size="large" wrap>
-            <Form.Item label="高开卖出阈值" name="gap_up_threshold">
-              <InputNumber min={0.5} max={10} step={0.1} addonAfter="%" />
+            <Form.Item label="要求均线多头" name="require_ma_bullish" valuePropName="checked" tooltip="MA5 > MA10 > MA20">
+              <Switch />
             </Form.Item>
-
-            <Form.Item label="低开止损阈值" name="low_open_stop">
-              <InputNumber min={0.5} max={10} step={0.1} addonAfter="%" />
-            </Form.Item>
-
-            <Form.Item label="止损线" name="stop_loss">
-              <InputNumber min={1} max={20} step={0.5} addonAfter="%" />
+            <Form.Item label="要求 MACD 增强" name="require_macd_golden" valuePropName="checked" tooltip="MACD 为正且不弱于前一交易日">
+              <Switch />
             </Form.Item>
           </Space>
+
+          <Paragraph type="secondary">
+            当前回测采用日线近似：信号日收盘买入、下一交易日开盘卖出，并计入手续费与滑点；暂不提供盘中止损参数。
+          </Paragraph>
 
           <Divider />
 

@@ -1,5 +1,5 @@
 // 选股页面
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   Row,
@@ -26,8 +26,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-import { screenApi, watchApi } from '../api';
-import type { StockCandidate } from '../types/api';
+import { screenApi, strategyApi, watchApi } from '../api';
+import type { StockCandidate, StrategyParams } from '../types/api';
 import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Text } = Typography;
@@ -41,6 +41,13 @@ export default function Screening() {
   const [strategy, setStrategy] = useState<string>('尾盘策略');
   const [selectedStock, setSelectedStock] = useState<StockCandidate | null>(null);
   const [detailLoading] = useState(false);
+  const [strategyParams, setStrategyParams] = useState<StrategyParams>({});
+
+  useEffect(() => {
+    strategyApi.get('尾盘策略').then((res) => {
+      if (res.code === 0) setStrategyParams(res.data.params || {});
+    }).catch(() => undefined);
+  }, []);
 
   const handleScreen = async () => {
     try {
@@ -208,23 +215,25 @@ export default function Screening() {
       <Card size="small" style={{ marginBottom: 16 }}>
         <Row gutter={24}>
           <Col>
-            <Text type="secondary">换手率 &gt; 3%</Text>
+            <Text type="secondary">换手率 &gt; {strategyParams.min_turnover_rate ?? 3}%</Text>
           </Col>
           <Col>
-            <Text type="secondary">流通市值 &lt; 200亿</Text>
+            <Text type="secondary">流通市值 &lt; {strategyParams.max_market_cap ?? 200}亿</Text>
           </Col>
           <Col>
-            <Text type="secondary">振幅 &lt; 5%</Text>
+            <Text type="secondary">振幅 &lt; {strategyParams.max_amplitude ?? 5}%</Text>
           </Col>
           <Col>
-            <Text type="secondary">股价 4-30元</Text>
+            <Text type="secondary">股价 {strategyParams.min_price ?? 4}-{strategyParams.max_price ?? 30}元</Text>
           </Col>
           <Col>
-            <Text type="secondary">量比 &gt; 1.2</Text>
+            <Text type="secondary">量比 &gt; {strategyParams.min_volume_ratio ?? 1.2}</Text>
           </Col>
           <Col>
             <Text type="secondary">昨日涨停</Text>
           </Col>
+          {strategyParams.require_ma_bullish !== false && <Col><Text type="secondary">均线多头</Text></Col>}
+          {strategyParams.require_macd_golden !== false && <Col><Text type="secondary">MACD 增强</Text></Col>}
         </Row>
       </Card>
       <Alert
