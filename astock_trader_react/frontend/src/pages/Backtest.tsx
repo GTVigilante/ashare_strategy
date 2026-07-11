@@ -34,6 +34,7 @@ import dayjs from 'dayjs';
 
 import { backtestApi } from '../api';
 import type { BacktestResult, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
+import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -88,8 +89,8 @@ export default function Backtest() {
       } else {
         message.error(res.message);
       }
-    } catch {
-      message.error('回测失败');
+    } catch (error) {
+      message.error(apiErrorMessage(error, '回测失败'));
     } finally {
       setLoading(false);
     }
@@ -108,8 +109,7 @@ export default function Backtest() {
       });
       if (res.code === 0) setComparison(res.data.ranking || []);
     } catch (error) {
-      const detail = (error as any)?.response?.data?.detail;
-      if (detail) message.error(detail);
+      message.error(apiErrorMessage(error, '参数对比失败'));
     } finally {
       setComparing(false);
     }
@@ -137,8 +137,7 @@ export default function Backtest() {
         message.success('组合回测完成');
       }
     } catch (error) {
-      const detail = (error as any)?.response?.data?.detail;
-      if (detail) message.error(detail);
+      message.error(apiErrorMessage(error, '组合回测失败'));
     } finally {
       setPortfolioLoading(false);
     }
@@ -157,8 +156,7 @@ export default function Backtest() {
       });
       if (res.code === 0) setWalkForward(res.data);
     } catch (error) {
-      const detail = (error as any)?.response?.data?.detail;
-      if (detail) message.error(detail);
+      message.error(apiErrorMessage(error, '样本外验证失败'));
     } finally {
       setWalkForwardLoading(false);
     }
@@ -177,8 +175,7 @@ export default function Backtest() {
       });
       if (res.code === 0) setMultiWalk(res.data);
     } catch (error) {
-      const detail = (error as any)?.response?.data?.detail;
-      if (detail) message.error(detail);
+      message.error(apiErrorMessage(error, '多窗口验证失败'));
     } finally {
       setMultiWalkLoading(false);
     }
@@ -298,9 +295,9 @@ export default function Backtest() {
     <div className="backtest">
       <Title level={2}>🔄 策略回测</Title>
 
-      <Row gutter={16}>
+      <Row gutter={[16, 16]}>
         {/* 回测参数 */}
-        <Col span={8}>
+        <Col xs={24} xl={8}>
           <Card title="回测参数">
             <Form
               form={form}
@@ -325,8 +322,6 @@ export default function Backtest() {
                 <Select
                   options={[
                     { label: '尾盘策略', value: '尾盘策略' },
-                    { label: '动量策略', value: '动量策略' },
-                    { label: '突破策略', value: '突破策略' },
                   ]}
                 />
               </Form.Item>
@@ -354,10 +349,13 @@ export default function Backtest() {
                 />
               </Form.Item>
 
-              <Form.Item label="初始资金" name="initial_cash">
+              <Form.Item label="初始资金" name="initial_cash" rules={[{ required: true, message: '请输入初始资金' }]}>
                 <InputNumber
                   style={{ width: '100%' }}
                   prefix="¥"
+                  min={10000}
+                  max={100000000}
+                  step={10000}
                 />
               </Form.Item>
 
@@ -419,7 +417,7 @@ export default function Backtest() {
         </Col>
 
         {/* 回测结果 */}
-        <Col span={16}>
+        <Col xs={24} xl={16}>
           <Card title="回测结果">
             {loading ? (
               <div style={{ textAlign: 'center', padding: 50 }}>
@@ -433,8 +431,8 @@ export default function Backtest() {
                     等权组合：{currentResult.symbols?.join('、')}
                   </Tag>
                 )}
-                <Row gutter={16}>
-                  <Col span={6}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={12} lg={6}>
                     <Statistic
                       title="总收益率"
                       value={currentResult.total_return}
@@ -455,14 +453,14 @@ export default function Backtest() {
                       }}
                     />
                   </Col>
-                  <Col span={6}>
+                  <Col xs={12} lg={6}>
                     <Statistic
                       title="夏普比率"
                       value={currentResult.sharpe_ratio}
                       precision={2}
                     />
                   </Col>
-                  <Col span={6}>
+                  <Col xs={12} lg={6}>
                     <Statistic
                       title="胜率"
                       value={currentResult.win_rate}
@@ -471,7 +469,7 @@ export default function Backtest() {
                       prefix={<TrophyOutlined />}
                     />
                   </Col>
-                  <Col span={6}>
+                  <Col xs={12} lg={6}>
                     <Statistic
                       title="最大回撤"
                       value={currentResult.max_drawdown}
@@ -591,15 +589,15 @@ export default function Backtest() {
             description={multiWalk.diagnostic.disclaimer}
             style={{ marginBottom: 16 }}
           />
-          <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} md={6}>
               <Progress type="dashboard" percent={multiWalk.diagnostic.score} format={(value) => `${value}分`} />
             </Col>
-            <Col span={9}>
+            <Col xs={24} md={9}>
               <Title level={5}>主要问题</Title>
               <List size="small" dataSource={multiWalk.diagnostic.issues} locale={{ emptyText: '未触发主要风险规则' }} renderItem={(item) => <List.Item>{item}</List.Item>} />
             </Col>
-            <Col span={9}>
+            <Col xs={24} md={9}>
               <Title level={5}>下一步建议</Title>
               <List size="small" dataSource={multiWalk.diagnostic.recommendations} renderItem={(item) => <List.Item>{item}</List.Item>} />
             </Col>
