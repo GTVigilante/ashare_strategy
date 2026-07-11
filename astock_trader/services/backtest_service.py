@@ -18,6 +18,15 @@ class BacktestMetrics:
     sharpe_ratio: float
     max_drawdown: float
     win_rate: float
+    annual_return: float
+    benchmark_return: float
+    excess_return: float
+    profit_factor: float | None
+    avg_profit: float
+    max_profit: float
+    min_profit: float
+    max_consecutive_losses: int
+    total_commission: float
     trades: list[dict[str, Any]]
     equity_curve: list[dict[str, Any]]
 
@@ -148,6 +157,7 @@ def run_tail_backtest(
     require_macd = bool(params.get("require_macd_golden", True))
 
     cash = float(initial_cash)
+    total_commission = 0.0
     trades: list[dict[str, Any]] = []
     equity = [{"date": data.iloc[0]["日期"].strftime("%Y-%m-%d"), "value": cash}]
     for index in range(20, len(data) - 1):
@@ -170,8 +180,10 @@ def run_tail_backtest(
         buy_price = float(row["收盘"]) * (1 + slippage)
         sell_price = float(next_row["开盘"]) * (1 - slippage)
         gross_return = sell_price / buy_price - 1
-        net_return = gross_return - commission * 2
-        profit = cash * net_return
+        commission_cost = cash * commission + cash * (1 + gross_return) * commission
+        profit = cash * gross_return - commission_cost
+        net_return = profit / cash
+        total_commission += commission_cost
         cash += profit
         trades.append({
             "id": len(trades) + 1,
@@ -183,6 +195,7 @@ def run_tail_backtest(
             "sell_price": round(sell_price, 3),
             "profit": round(profit, 2),
             "profit_percent": round(net_return * 100, 3),
+            "commission": round(commission_cost, 2),
             "hold_days": 1,
             "reason": "次交易日开盘卖出（日线近似）",
         })
@@ -193,12 +206,32 @@ def run_tail_backtest(
     peaks = np.maximum.accumulate(values)
     drawdown = np.max((peaks - values) / peaks) if len(values) else 0
     sharpe = float(returns.mean() / returns.std(ddof=1) * np.sqrt(252)) if len(returns) > 1 and returns.std(ddof=1) else 0
+    total_return = cash / initial_cash - 1
+    elapsed_days = max(1, (data.iloc[-1]["日期"] - data.iloc[0]["日期"]).days)
+    annual_return = (1 + total_return) ** (365 / elapsed_days) - 1 if total_return > -1 else -1
+    benchmark_return = float(data.iloc[-1]["收盘"] / data.iloc[0]["收盘"] - 1)
+    wins = returns[returns > 0]
+    losses = returns[returns < 0]
+    profit_factor = float(wins.sum() / abs(losses.sum())) if len(losses) and abs(losses.sum()) else None
+    consecutive = max_consecutive = 0
+    for value in returns:
+        consecutive = consecutive + 1 if value < 0 else 0
+        max_consecutive = max(max_consecutive, consecutive)
     return BacktestMetrics(
         final_value=round(cash, 2),
-        total_return=(cash / initial_cash - 1),
+        total_return=total_return,
         sharpe_ratio=sharpe,
         max_drawdown=float(drawdown * 100),
         win_rate=float((returns > 0).mean()) if len(returns) else 0,
+        annual_return=float(annual_return),
+        benchmark_return=benchmark_return,
+        excess_return=float(total_return - benchmark_return),
+        profit_factor=profit_factor,
+        avg_profit=float(returns.mean() * 100) if len(returns) else 0,
+        max_profit=float(returns.max() * 100) if len(returns) else 0,
+        min_profit=float(returns.min() * 100) if len(returns) else 0,
+        max_consecutive_losses=max_consecutive,
+        total_commission=float(total_commission),
         trades=trades,
         equity_curve=equity,
     )

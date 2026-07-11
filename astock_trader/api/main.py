@@ -310,6 +310,17 @@ def run_backtest(request: BacktestRequest):
         params = {**configured, **backtest_config}
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         result = run_tail_backtest(frame, symbol, request.initial_cash, params)
+        extended_metrics = {
+            "annual_return": result.annual_return * 100,
+            "benchmark_return": result.benchmark_return * 100,
+            "excess_return": result.excess_return * 100,
+            "profit_factor": result.profit_factor,
+            "avg_profit": result.avg_profit,
+            "max_profit": result.max_profit,
+            "min_profit": result.min_profit,
+            "max_consecutive_losses": result.max_consecutive_losses,
+            "total_commission": result.total_commission,
+        }
         
         # 保存回测记录
         repo = BacktestRepository(db)
@@ -324,7 +335,7 @@ def run_backtest(request: BacktestRequest):
             "max_drawdown": result.max_drawdown,
             "win_rate": result.win_rate,
             "total_trades": len(result.trades),
-            "trades_detail": {"trades": result.trades, "equity_curve": result.equity_curve}
+            "trades_detail": {"trades": result.trades, "equity_curve": result.equity_curve, "metrics": extended_metrics}
         })
         
         return success_response({
@@ -342,6 +353,7 @@ def run_backtest(request: BacktestRequest):
             "equity_curve": result.equity_curve,
             "trades": result.trades,
             "created_at": record.created_at.isoformat() if record.created_at else None,
+            **extended_metrics,
         })
         
     except HTTPException:
@@ -376,6 +388,7 @@ def get_backtest_history(
         "equity_curve": (r.trades_detail or {}).get("equity_curve", []) if isinstance(r.trades_detail, dict) else [],
         "trades": (r.trades_detail or {}).get("trades", []) if isinstance(r.trades_detail, dict) else (r.trades_detail or []),
         "created_at": r.created_at.isoformat() if r.created_at else None,
+        **((r.trades_detail or {}).get("metrics", {}) if isinstance(r.trades_detail, dict) else {}),
     } for r in records]
     
     return success_response({

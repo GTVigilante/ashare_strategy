@@ -101,6 +101,7 @@ export interface BacktestTrade {
   sell_price: number;
   profit: number;
   profit_percent: number;
+  commission?: number;
   hold_days: number;
   reason: string;
 }
@@ -119,6 +120,8 @@ export interface BacktestResult {
   final_value: number;
   total_return: number;
   annual_return?: number;
+  benchmark_return?: number;
+  excess_return?: number;
   sharpe_ratio: number;
   max_drawdown: number;
   win_rate: number;
@@ -127,6 +130,8 @@ export interface BacktestResult {
   avg_profit?: number;
   max_profit?: number;
   min_profit?: number;
+  max_consecutive_losses?: number;
+  total_commission?: number;
   equity_curve: EquityPoint[];
   trades: BacktestTrade[];
   created_at?: string;

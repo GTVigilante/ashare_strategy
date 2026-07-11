@@ -17,6 +17,7 @@ import {
   Space,
   Spin,
   message,
+  Descriptions,
 } from 'antd';
 
 import {
@@ -354,6 +355,27 @@ export default function Backtest() {
                     />
                   </Col>
                 </Row>
+
+                <Descriptions bordered size="small" column={3} style={{ marginTop: 24 }}>
+                  <Descriptions.Item label="年化收益">
+                    {(currentResult.annual_return ?? 0).toFixed(2)}%
+                  </Descriptions.Item>
+                  <Descriptions.Item label="买入持有基准">
+                    {(currentResult.benchmark_return ?? 0).toFixed(2)}%
+                  </Descriptions.Item>
+                  <Descriptions.Item label="超额收益">
+                    {(currentResult.excess_return ?? 0).toFixed(2)}%
+                  </Descriptions.Item>
+                  <Descriptions.Item label="盈亏比">
+                    {currentResult.profit_factor == null ? '无亏损交易' : currentResult.profit_factor.toFixed(2)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="最大连续亏损">
+                    {currentResult.max_consecutive_losses ?? 0} 笔
+                  </Descriptions.Item>
+                  <Descriptions.Item label="手续费合计">
+                    ¥{(currentResult.total_commission ?? 0).toFixed(2)}
+                  </Descriptions.Item>
+                </Descriptions>
 
                 <div style={{ margin: '24px 0' }}>
                   <Title level={4}>资金曲线</Title>

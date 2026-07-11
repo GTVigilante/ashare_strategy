@@ -43,6 +43,11 @@ class TailBacktestTests(unittest.TestCase):
         self.assertEqual(len(result.trades), 1)
         self.assertGreater(result.final_value, 100_000)
         self.assertEqual(len(result.equity_curve), 2)
+        self.assertGreater(result.benchmark_return, 0)
+        self.assertAlmostEqual(result.excess_return, result.total_return - result.benchmark_return)
+        self.assertGreater(result.total_commission, 0)
+        self.assertEqual(result.max_consecutive_losses, 0)
+        self.assertIsNone(result.profit_factor)
 
     def test_rejects_short_history(self):
         with self.assertRaises(HistoricalDataError):
