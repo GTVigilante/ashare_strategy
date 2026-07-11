@@ -197,13 +197,18 @@ class StockWatchRepository:
     def get_all(self) -> List[StockWatch]:
         with self.db.get_session() as session:
             return session.query(StockWatch).order_by(StockWatch.added_at.desc()).all()
+
+    def get_by_symbol(self, symbol: str) -> Optional[StockWatch]:
+        with self.db.get_session() as session:
+            return session.query(StockWatch).filter(StockWatch.symbol == symbol).first()
     
-    def add(self, symbol: str, name: str = '', notes: str = '') -> StockWatch:
+    def add(self, symbol: str, name: str = '', notes: str = '', tags: Optional[List[str]] = None) -> StockWatch:
         with self.db.get_session() as session:
             watch = StockWatch(
                 symbol=symbol,
                 name=name,
-                notes=notes
+                notes=notes,
+                tags=tags or [],
             )
             session.add(watch)
             session.commit()

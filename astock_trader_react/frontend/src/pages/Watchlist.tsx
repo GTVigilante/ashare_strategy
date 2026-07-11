@@ -23,10 +23,12 @@ import {
 import { watchApi } from '../api';
 import type { WatchStock } from '../types/api';
 import { apiErrorMessage } from '../utils/apiError';
+import { useNavigate } from 'react-router-dom';
 
 const { Title } = Typography;
 
 export default function Watchlist() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [stocks, setStocks] = useState<WatchStock[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,9 +52,10 @@ export default function Watchlist() {
     }
   };
 
-  const handleAdd = async (values: any) => {
+  const handleAdd = async (values: { symbol: string; name?: string; tags?: string; notes?: string }) => {
     try {
-      const res = await watchApi.add(values);
+      const tags = String(values.tags || '').split(/[,，]/).map((tag) => tag.trim()).filter(Boolean);
+      const res = await watchApi.add({ ...values, tags });
       if (res.code === 0) {
         message.success('添加成功');
         setModalVisible(false);
@@ -122,8 +125,9 @@ export default function Watchlist() {
             type="link"
             icon={<LineChartOutlined />}
             size="small"
+            onClick={() => navigate(`/backtest?symbol=${record.symbol}`)}
           >
-            分析
+            回测
           </Button>
           <Popconfirm
             title="确定删除？"
@@ -182,9 +186,12 @@ export default function Watchlist() {
           <Form.Item
             label="股票代码"
             name="symbol"
-            rules={[{ required: true, message: '请输入股票代码' }]}
+            rules={[
+              { required: true, message: '请输入股票代码' },
+              { pattern: /^\d{6}$/, message: '请输入六位 A 股代码' },
+            ]}
           >
-            <Input placeholder="如: 300001" />
+            <Input maxLength={6} placeholder="如: 300001" />
           </Form.Item>
 
           <Form.Item label="股票名称" name="name">

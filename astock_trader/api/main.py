@@ -6,7 +6,7 @@ FastAPI 后端
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 import pandas as pd
@@ -106,6 +106,20 @@ class StockWatchAdd(BaseModel):
     symbol: str
     name: str = ""
     notes: str = ""
+    tags: List[str] = Field(default_factory=list)
+
+    @field_validator("symbol")
+    @classmethod
+    def validate_symbol(cls, value: str) -> str:
+        value = value.strip()
+        if not value.isdigit() or len(value) != 6:
+            raise ValueError("股票代码必须为六位数字")
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, values: List[str]) -> List[str]:
+        return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:10]
 
 
 class BacktestRequest(BaseModel):
@@ -306,7 +320,8 @@ def list_watch():
             "symbol": s.symbol,
             "name": s.name,
             "added_at": s.added_at.isoformat() if s.added_at else None,
-            "notes": s.notes
+            "notes": s.notes,
+            "tags": s.tags or [],
         }
         for s in stocks
     ]
@@ -317,8 +332,10 @@ def list_watch():
 def add_watch(stock: StockWatchAdd):
     """添加自选股"""
     repo = StockWatchRepository(db)
+    if repo.get_by_symbol(stock.symbol):
+        raise HTTPException(status_code=409, detail="该股票已在自选列表中")
     try:
-        result = repo.add(stock.symbol, stock.name, stock.notes)
+        result = repo.add(stock.symbol, stock.name, stock.notes, stock.tags)
         return success_response({"symbol": result.symbol}, "添加成功")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

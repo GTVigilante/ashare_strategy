@@ -7,6 +7,7 @@ from api.main import (
     tail_runtime_params,
     toggle_strategy,
     get_today_stocks, latest_screening,
+    StockWatchAdd, add_watch,
 )
 
 
@@ -92,6 +93,21 @@ class ApiContractTests(unittest.TestCase):
             self.assertEqual(response["data"]["candidates"][0]["symbol"], "000001")
         finally:
             latest_screening.update(original)
+
+    def test_watch_request_validates_symbol_and_normalizes_tags(self):
+        request = StockWatchAdd(
+            symbol=" 000001 ", tags=["银行", " 银行 ", "低估"],
+        )
+        self.assertEqual(request.symbol, "000001")
+        self.assertEqual(request.tags, ["银行", "低估"])
+        with self.assertRaisesRegex(Exception, "六位数字"):
+            StockWatchAdd(symbol="123")
+
+    @patch("api.main.StockWatchRepository")
+    def test_duplicate_watch_has_clear_conflict(self, repository_class):
+        repository_class.return_value.get_by_symbol.return_value = MagicMock()
+        with self.assertRaisesRegex(Exception, "已在自选列表"):
+            add_watch(StockWatchAdd(symbol="000001"))
 
 
 if __name__ == "__main__":

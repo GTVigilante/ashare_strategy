@@ -31,6 +31,7 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
 
 import { backtestApi } from '../api';
 import type { BacktestResult, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
@@ -41,6 +42,9 @@ const { RangePicker } = DatePicker;
 const EquityChart = lazy(() => import('../components/EquityChart'));
 
 export default function Backtest() {
+  const [searchParams] = useSearchParams();
+  const requestedSymbol = searchParams.get('symbol');
+  const initialSymbol = requestedSymbol && /^\d{6}$/.test(requestedSymbol) ? requestedSymbol : '000001';
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<BacktestResult[]>([]);
   const [currentResult, setCurrentResult] = useState<BacktestResult | null>(null);
@@ -305,7 +309,7 @@ export default function Backtest() {
               onFinish={handleRunBacktest}
               initialValues={{
                 strategy: '尾盘策略',
-                symbol: '000001',
+                symbol: initialSymbol,
                 dates: [
                   dayjs().subtract(6, 'month'),
                   dayjs().subtract(1, 'day'),
