@@ -2,6 +2,21 @@
 
 本仓库包含尾盘策略研究框架、FastAPI 交易服务和 React 管理界面。
 
+## 一键启动
+
+要求 Python 3.12+、Node.js 20+、npm 和 curl。首次运行会创建本地配置、生成随机登录密码，并安装缺失依赖：
+
+```bash
+./start.sh
+```
+
+启动成功后访问 <http://127.0.0.1:8888>。终端会在首次配置时显示登录密码；按 `Ctrl+C` 同时停止前后端。
+
+```bash
+./start.sh --check       # 仅检查环境
+./start.sh --setup-only  # 初始化配置和依赖，但不启动
+```
+
 ## 目录
 
 - `astock_tail_strategy/`：基于 AKShare 和 Backtrader 的独立策略研究、选股与回测工具。
