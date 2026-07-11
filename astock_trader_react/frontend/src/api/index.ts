@@ -10,6 +10,7 @@ import type {
   BacktestResult,
   ParameterComparison,
   WalkForwardResult,
+  MultiWalkForwardResult,
   PageResponse,
   WatchStock,
   Signal,
@@ -178,6 +179,14 @@ export const backtestApi = {
     initial_cash?: number;
     symbols: string[];
   }): Promise<ApiResponse<WalkForwardResult>> => api.post('/backtest/walk-forward', data),
+
+  multiWalkForward: (data: {
+    strategy: string;
+    start_date: string;
+    end_date: string;
+    initial_cash?: number;
+    symbols: string[];
+  }): Promise<ApiResponse<MultiWalkForwardResult>> => api.post('/backtest/walk-forward/multi', data),
 };
 
 // ============ 自选股 API ============

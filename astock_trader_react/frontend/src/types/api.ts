@@ -168,6 +168,39 @@ export interface WalkForwardResult {
     'equity_curve' | 'trades'>;
 }
 
+export interface MultiWalkForwardResult {
+  symbol: string;
+  train_days: number;
+  validation_days: number;
+  window_count: number;
+  windows: Array<{
+    index: number;
+    train_start: string;
+    train_end: string;
+    validation_start: string;
+    validation_end: string;
+    selected_name: string;
+    opening_cash: number;
+    closing_cash: number;
+    total_return: number;
+    benchmark_return: number;
+    excess_return: number;
+    max_drawdown: number;
+    total_trades: number;
+  }>;
+  summary: {
+    initial_cash: number;
+    final_value: number;
+    total_return: number;
+    benchmark_return: number;
+    excess_return: number;
+    max_drawdown: number;
+    positive_windows: number;
+    selection_counts: Record<string, number>;
+    equity_curve: EquityPoint[];
+  };
+}
+
 // ============ 自选股 ============
 
 export interface WatchStock {

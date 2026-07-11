@@ -124,6 +124,87 @@ def walk_forward_validate(
     }
 
 
+def multi_window_walk_forward(
+    frame: pd.DataFrame,
+    symbol: str,
+    initial_cash: float,
+    base: dict[str, Any],
+    train_days: int = 60,
+    validation_days: int = 20,
+) -> dict[str, Any]:
+    data = frame.copy()
+    data["日期"] = pd.to_datetime(data["日期"])
+    data = data.sort_values("日期").drop_duplicates("日期").reset_index(drop=True)
+    if len(data) < train_days + validation_days * 2:
+        raise HistoricalDataError(f"多窗口验证至少需要 {train_days + validation_days * 2} 个交易日")
+
+    cash = float(initial_cash)
+    windows = []
+    combined_curve = []
+    benchmark_growth = 1.0
+    for start in range(0, len(data) - train_days - validation_days + 1, validation_days):
+        train_end = start + train_days
+        validation_end = train_end + validation_days
+        train = data.iloc[start:train_end].copy()
+        validation_start_date = data.iloc[train_end]["日期"]
+        validation = data.iloc[max(start, train_end - 30):validation_end].copy()
+        ranking = compare_tail_parameters(train, symbol, cash, base)
+        selected_name = ranking[0]["name"]
+        selected_params = dict(tail_parameter_variants(base))[selected_name]
+        opening_cash = cash
+        result = run_tail_backtest(
+            validation, symbol, opening_cash, selected_params,
+            evaluation_start_date=validation_start_date.strftime("%Y%m%d"),
+        )
+        cash = result.final_value
+        benchmark_growth *= 1 + result.benchmark_return
+        curve = result.equity_curve
+        if combined_curve and curve and combined_curve[-1]["date"] == curve[0]["date"]:
+            curve = curve[1:]
+        combined_curve.extend(curve)
+        windows.append({
+            "index": len(windows) + 1,
+            "train_start": train.iloc[0]["日期"].strftime("%Y-%m-%d"),
+            "train_end": train.iloc[-1]["日期"].strftime("%Y-%m-%d"),
+            "validation_start": validation_start_date.strftime("%Y-%m-%d"),
+            "validation_end": data.iloc[validation_end - 1]["日期"].strftime("%Y-%m-%d"),
+            "selected_name": selected_name,
+            "opening_cash": round(opening_cash, 2),
+            "closing_cash": round(cash, 2),
+            "total_return": result.total_return * 100,
+            "benchmark_return": result.benchmark_return * 100,
+            "excess_return": result.excess_return * 100,
+            "max_drawdown": result.max_drawdown,
+            "total_trades": len(result.trades),
+        })
+
+    values = pd.Series([point["value"] for point in combined_curve], dtype=float)
+    peaks = values.cummax()
+    total_return = cash / initial_cash - 1
+    benchmark_return = benchmark_growth - 1
+    selections: dict[str, int] = {}
+    for window in windows:
+        selections[window["selected_name"]] = selections.get(window["selected_name"], 0) + 1
+    return {
+        "symbol": symbol,
+        "train_days": train_days,
+        "validation_days": validation_days,
+        "window_count": len(windows),
+        "windows": windows,
+        "summary": {
+            "initial_cash": initial_cash,
+            "final_value": round(cash, 2),
+            "total_return": total_return * 100,
+            "benchmark_return": benchmark_return * 100,
+            "excess_return": (total_return - benchmark_return) * 100,
+            "max_drawdown": float(((peaks - values) / peaks).max() * 100) if len(values) else 0,
+            "positive_windows": sum(window["total_return"] > 0 for window in windows),
+            "selection_counts": selections,
+            "equity_curve": combined_curve,
+        },
+    }
+
+
 def run_equal_weight_portfolio(
     frames: dict[str, pd.DataFrame],
     initial_cash: float,

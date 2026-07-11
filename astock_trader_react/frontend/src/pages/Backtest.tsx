@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 import { Line } from '@ant-design/charts';
 
 import { backtestApi } from '../api';
-import type { BacktestResult, BacktestTrade, ParameterComparison, WalkForwardResult } from '../types/api';
+import type { BacktestResult, BacktestTrade, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -45,6 +45,8 @@ export default function Backtest() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [walkForwardLoading, setWalkForwardLoading] = useState(false);
   const [walkForward, setWalkForward] = useState<WalkForwardResult | null>(null);
+  const [multiWalkLoading, setMultiWalkLoading] = useState(false);
+  const [multiWalk, setMultiWalk] = useState<MultiWalkForwardResult | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -156,6 +158,26 @@ export default function Backtest() {
       if (detail) message.error(detail);
     } finally {
       setWalkForwardLoading(false);
+    }
+  };
+
+  const handleMultiWalkForward = async () => {
+    try {
+      const values = await form.validateFields();
+      setMultiWalkLoading(true);
+      const res = await backtestApi.multiWalkForward({
+        strategy: values.strategy,
+        start_date: values.dates[0].format('YYYYMMDD'),
+        end_date: values.dates[1].format('YYYYMMDD'),
+        initial_cash: values.initial_cash || 100000,
+        symbols: [values.symbol],
+      });
+      if (res.code === 0) setMultiWalk(res.data);
+    } catch (error) {
+      const detail = (error as any)?.response?.data?.detail;
+      if (detail) message.error(detail);
+    } finally {
+      setMultiWalkLoading(false);
     }
   };
 
@@ -353,6 +375,9 @@ export default function Backtest() {
               </Button>
               <Button block onClick={handleWalkForward} loading={walkForwardLoading} style={{ marginTop: 8 }}>
                 运行 70/30 样本外验证
+              </Button>
+              <Button block onClick={handleMultiWalkForward} loading={multiWalkLoading} style={{ marginTop: 8 }}>
+                运行多窗口 Walk-Forward
               </Button>
 
               <Form.Item
@@ -554,6 +579,35 @@ export default function Backtest() {
           </Descriptions>
           <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
             训练段用于选择参数；验证段只使用选定参数。验证前历史仅用于指标预热，不允许产生交易。
+          </Text>
+        </Card>
+      )}
+
+      {multiWalk && (
+        <Card title="多窗口 Walk-Forward" style={{ marginTop: 16 }}>
+          <Descriptions bordered column={4} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="窗口数">{multiWalk.window_count}</Descriptions.Item>
+            <Descriptions.Item label="累计收益">{multiWalk.summary.total_return.toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="累计超额">{multiWalk.summary.excess_return.toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="正收益窗口">{multiWalk.summary.positive_windows}/{multiWalk.window_count}</Descriptions.Item>
+          </Descriptions>
+          <Table
+            rowKey="index"
+            pagination={false}
+            dataSource={multiWalk.windows}
+            columns={[
+              { title: '窗口', dataIndex: 'index' },
+              { title: '训练区间', render: (_v, r) => `${r.train_start} ~ ${r.train_end}` },
+              { title: '验证区间', render: (_v, r) => `${r.validation_start} ~ ${r.validation_end}` },
+              { title: '选中参数', dataIndex: 'selected_name' },
+              { title: '验证收益', dataIndex: 'total_return', render: (v) => `${v.toFixed(2)}%` },
+              { title: '超额收益', dataIndex: 'excess_return', render: (v) => `${v.toFixed(2)}%` },
+              { title: '最大回撤', dataIndex: 'max_drawdown', render: (v) => `${v.toFixed(2)}%` },
+              { title: '交易数', dataIndex: 'total_trades' },
+            ]}
+          />
+          <Text type="secondary">
+            固定使用 60 日训练、20 日验证并每次向前滚动 20 日；验证资金在窗口之间连续复利。
           </Text>
         </Card>
       )}

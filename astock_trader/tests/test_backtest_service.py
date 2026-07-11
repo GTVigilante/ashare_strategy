@@ -7,7 +7,7 @@ import pandas as pd
 from services.backtest_service import (
     HistoricalDataError, compare_tail_parameters, fetch_daily_data,
     run_equal_weight_portfolio, run_tail_backtest,
-    walk_forward_validate,
+    multi_window_walk_forward, walk_forward_validate,
 )
 
 
@@ -128,6 +128,24 @@ class TailBacktestTests(unittest.TestCase):
             pd.Timestamp(trade["buy_date"]) >= validation_start
             for trade in result["validation"]["trades"]
         ))
+
+    def test_multi_window_validation_is_sequential_and_compounded(self):
+        dates = pd.bdate_range("2024-01-01", periods=120)
+        closes = [10 + index * 0.02 for index in range(120)]
+        for index in (25, 65, 85, 105):
+            closes[index] = closes[index - 1] * 1.10
+        frame = pd.DataFrame({
+            "日期": dates, "开盘": closes,
+            "最高": [value * 1.01 for value in closes],
+            "最低": [value * 0.99 for value in closes], "收盘": closes,
+            "成交量": [1_000_000] * 120,
+        })
+        result = multi_window_walk_forward(frame, "000001", 100_000, {})
+        self.assertEqual(result["window_count"], 3)
+        windows = result["windows"]
+        self.assertEqual(windows[1]["opening_cash"], windows[0]["closing_cash"])
+        self.assertLess(pd.Timestamp(windows[0]["validation_end"]), pd.Timestamp(windows[1]["validation_start"]))
+        self.assertEqual(sum(result["summary"]["selection_counts"].values()), 3)
 
 
 if __name__ == "__main__":
