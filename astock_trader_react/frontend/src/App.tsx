@@ -1,5 +1,5 @@
 /* @refresh reload */
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Layout,
   Menu,
@@ -8,6 +8,7 @@ import {
   Space,
   Drawer,
   message,
+  Spin,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -21,28 +22,36 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
-import Dashboard from './pages/Dashboard';
-import Screening from './pages/Screening';
-import Backtest from './pages/Backtest';
-import Config from './pages/Config';
-import Watchlist from './pages/Watchlist';
-import PaperTrading from './pages/PaperTrading';
 import './App.css';
 import { authApi } from './api';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Screening = lazy(() => import('./pages/Screening'));
+const Backtest = lazy(() => import('./pages/Backtest'));
+const Config = lazy(() => import('./pages/Config'));
+const Watchlist = lazy(() => import('./pages/Watchlist'));
+const PaperTrading = lazy(() => import('./pages/PaperTrading'));
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
 type PageKey = 'dashboard' | 'screening' | 'backtest' | 'paper' | 'watchlist' | 'config';
+const pagePaths: Record<PageKey, string> = {
+  dashboard: '/dashboard', screening: '/screening', backtest: '/backtest',
+  paper: '/paper', watchlist: '/watchlist', config: '/config',
+};
 
 function App() {
   const [authenticated, setAuthenticated] = useState(authApi.hasSession());
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [currentPage, setCurrentPage] = useState<PageKey>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage = (Object.entries(pagePaths).find(([, path]) => location.pathname === path)?.[0] || 'dashboard') as PageKey;
 
   useEffect(() => {
     const handleUnauthorized = () => setAuthenticated(false);
@@ -84,20 +93,8 @@ function App() {
     { key: 'config', icon: <SettingOutlined />, label: '配置' },
   ];
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard': return <Dashboard />;
-      case 'screening': return <Screening />;
-      case 'backtest': return <Backtest />;
-      case 'paper': return <PaperTrading />;
-      case 'watchlist': return <Watchlist />;
-      case 'config': return <Config />;
-      default: return <Dashboard />;
-    }
-  };
-
   const handleMenuClick = (key: PageKey) => {
-    setCurrentPage(key);
+    navigate(pagePaths[key]);
     setDrawerOpen(false);
   };
 
@@ -166,7 +163,7 @@ function App() {
           mode="inline"
           selectedKeys={[currentPage]}
           items={menuItems}
-          onClick={({ key }) => setCurrentPage(key as PageKey)}
+          onClick={({ key }) => handleMenuClick(key as PageKey)}
         />
       </Sider>
 
@@ -223,7 +220,17 @@ function App() {
 
         <Content className="content-area">
           <div className="content-wrapper">
-            {renderPage()}
+            <Suspense fallback={<div style={{ padding: 80, textAlign: 'center' }}><Spin size="large" /></div>}>
+              <Routes>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/screening" element={<Screening />} />
+                <Route path="/backtest" element={<Backtest />} />
+                <Route path="/paper" element={<PaperTrading />} />
+                <Route path="/watchlist" element={<Watchlist />} />
+                <Route path="/config" element={<Config />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
           </div>
         </Content>
       </Layout>

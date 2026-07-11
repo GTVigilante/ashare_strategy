@@ -1,5 +1,5 @@
 // 回测页面
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Card,
   Row,
@@ -31,13 +31,13 @@ import {
   TrophyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { Line } from '@ant-design/charts';
 
 import { backtestApi } from '../api';
 import type { BacktestResult, BacktestTrade, MultiWalkForwardResult, ParameterComparison, WalkForwardResult } from '../types/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
+const EquityChart = lazy(() => import('../components/EquityChart'));
 
 export default function Backtest() {
   const [loading, setLoading] = useState(false);
@@ -506,13 +506,9 @@ export default function Backtest() {
                 <div style={{ margin: '24px 0' }}>
                   <Title level={4}>资金曲线</Title>
                   {currentResult.equity_curve?.length > 1 ? (
-                    <Line
-                      data={currentResult.equity_curve}
-                      xField="date"
-                      yField="value"
-                      height={220}
-                      axis={{ y: { labelFormatter: (value) => `¥${Number(value).toLocaleString()}` } }}
-                    />
+                    <Suspense fallback={<Spin />}>
+                      <EquityChart data={currentResult.equity_curve} />
+                    </Suspense>
                   ) : (
                     <Text type="secondary">区间内没有产生交易，资金保持不变。</Text>
                   )}
