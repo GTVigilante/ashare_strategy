@@ -1,8 +1,9 @@
 import unittest
+from unittest.mock import MagicMock, patch
 
 from api.main import (
     get_backtest_history, get_dashboard, get_strategy, list_strategies,
-    list_watch, paper_status,
+    list_watch, paper_status, StrategyConfigUpdate, update_strategy,
 )
 
 
@@ -19,6 +20,21 @@ class ApiContractTests(unittest.TestCase):
         for response in responses:
             with self.subTest(response=response):
                 self.assert_envelope(response)
+
+    @patch("api.main.StrategyRepository")
+    def test_strategy_update_keeps_enabled_separate_from_params(self, repository_class):
+        repository = repository_class.return_value
+        repository.get_by_name.return_value = MagicMock()
+
+        response = update_strategy(
+            "尾盘策略",
+            StrategyConfigUpdate(params={"min_price": 5}, enabled=False),
+        )
+
+        repository.update.assert_called_once_with(
+            "尾盘策略", {"min_price": 5}, enabled=False,
+        )
+        self.assert_envelope(response)
 
 
 if __name__ == "__main__":

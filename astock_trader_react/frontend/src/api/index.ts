@@ -75,8 +75,9 @@ export const strategyApi = {
   // 更新策略配置
   update: (
     name: string,
-    params: Record<string, any>
-  ): Promise<ApiResponse> => api.put(`/strategies/${name}`, { params }),
+    params: Record<string, unknown>,
+    enabled?: boolean,
+  ): Promise<ApiResponse> => api.put(`/strategies/${name}`, { params, enabled }),
 
   // 切换策略启用状态
   toggle: (name: string): Promise<ApiResponse<{ enabled: boolean }>> =>

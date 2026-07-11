@@ -83,6 +83,7 @@ def error_response(message: str, code: int = -1) -> Dict:
 
 class StrategyConfigUpdate(BaseModel):
     params: Dict[str, Any]
+    enabled: Optional[bool] = None
 
 
 class StockWatchAdd(BaseModel):
@@ -243,7 +244,7 @@ def update_strategy(name: str, config: StrategyConfigUpdate):
     strategy = repo.get_by_name(name)
     
     if strategy:
-        repo.update(name, config.params)
+        repo.update(name, config.params, enabled=config.enabled)
     else:
         # 创建新策略
         strategy_class = StrategyRegistry.get(name)
@@ -255,6 +256,8 @@ def update_strategy(name: str, config: StrategyConfigUpdate):
             description=instance.get_description(),
             params=config.params
         )
+        if config.enabled is False:
+            repo.update(name, config.params, enabled=False)
     
     return success_response(None, "策略更新成功")
 

@@ -16,7 +16,8 @@ import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { strategyApi } from '../api';
 import type { Strategy } from '../types/api';
 
-const { Title } = Typography;
+const { Title, Paragraph } = Typography;
+type ConfigValues = Strategy['params'] & { enabled: boolean };
 
 export default function Config() {
   const [loading, setLoading] = useState(false);
@@ -39,13 +40,15 @@ export default function Config() {
       }
     } catch (error) {
       console.error('获取策略失败:', error);
+      message.error('策略配置加载失败，请检查服务连接');
     }
   };
 
-  const handleSave = async (values: any) => {
+  const handleSave = async (values: ConfigValues) => {
     try {
       setLoading(true);
-      const res = await strategyApi.update('尾盘策略', values);
+      const { enabled, ...params } = values;
+      const res = await strategyApi.update('尾盘策略', params, enabled);
       if (res.code === 0) {
         message.success('配置已保存');
         fetchStrategy();
@@ -60,6 +63,7 @@ export default function Config() {
   return (
     <div className="config">
       <Title level={2}>⚙️ 策略配置</Title>
+      <Paragraph type="secondary">参数会用于后续选股与回测。保存前请确认单位，建议每次调整后重新执行样本外验证。</Paragraph>
 
       <Card>
         <Form
@@ -80,7 +84,7 @@ export default function Config() {
           }}
         >
           {/* 基本信息 */}
-          <Form.Item label="启用策略" name="enabled" valuePropName="checked">
+          <Form.Item label="启用策略" name="enabled" valuePropName="checked" tooltip="关闭后保留参数，但标记该策略为停用">
             <Switch />
           </Form.Item>
 

@@ -169,11 +169,13 @@ class StrategyRepository:
             session.refresh(strategy)
             return strategy
     
-    def update(self, name: str, params: Dict) -> Optional[Strategy]:
+    def update(self, name: str, params: Dict, enabled: Optional[bool] = None) -> Optional[Strategy]:
         with self.db.get_session() as session:
             strategy = session.query(Strategy).filter(Strategy.name == name).first()
             if strategy:
                 strategy.params = params
+                if enabled is not None:
+                    strategy.enabled = enabled
                 strategy.updated_at = datetime.now()
                 session.commit()
                 session.refresh(strategy)

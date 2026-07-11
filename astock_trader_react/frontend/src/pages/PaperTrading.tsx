@@ -34,7 +34,7 @@ export default function PaperTrading() {
     <Title level={2}>🧪 模拟盘</Title>
     <Alert type="warning" showIcon message="仅为内存模拟账户，不连接券商；服务重启后账户重置。价格由用户输入，仅用于验证风控流程。" style={{ marginBottom: 16 }} />
     <Row gutter={16}>
-      <Col span={8}><Card title="策略准入与订单">
+      <Col xs={24} xl={8}><Card title="策略准入与订单">
         <Form form={form} layout="vertical" onFinish={order} initialValues={{ symbol: '000001', side: 'buy', quantity: 100 }}>
           <Form.Item name="symbol" label="股票代码"><Input maxLength={6} /></Form.Item>
           <Button block onClick={approve} loading={loading}>运行多窗口诊断并申请准入</Button>
@@ -44,8 +44,8 @@ export default function PaperTrading() {
           <Button block type="primary" htmlType="submit">提交模拟订单</Button>
         </Form>
       </Card></Col>
-      <Col span={16}><Card title="账户与风控">
-        <Row gutter={16}><Col span={8}><Statistic title="权益" value={status?.equity || 0} prefix="¥" /></Col><Col span={8}><Statistic title="现金" value={status?.cash || 0} prefix="¥" /></Col><Col span={8}><Statistic title="当前回撤" value={(status?.drawdown || 0) * 100} suffix="%" precision={2} /></Col></Row>
+      <Col xs={24} xl={16}><Card title="账户与风控">
+        <Row gutter={[16, 16]}><Col xs={24} sm={8}><Statistic title="权益" value={status?.equity || 0} prefix="¥" /></Col><Col xs={24} sm={8}><Statistic title="现金" value={status?.cash || 0} prefix="¥" /></Col><Col xs={24} sm={8}><Statistic title="当前回撤" value={(status?.drawdown || 0) * 100} suffix="%" precision={2} /></Col></Row>
         <Text type="secondary">限制：单股 20% · 单日亏损 3% · 最大回撤 10%</Text>
         <Table style={{ marginTop: 16 }} pagination={false} rowKey="id" dataSource={status?.orders || []} columns={[{ title: '代码', dataIndex: 'symbol' }, { title: '方向', dataIndex: 'side' }, { title: '数量', dataIndex: 'quantity' }, { title: '价格', dataIndex: 'price' }, { title: '状态', dataIndex: 'status' }]} />
       </Card></Col>

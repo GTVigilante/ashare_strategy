@@ -11,6 +11,8 @@ import {
   Spin,
   Typography,
   Space,
+  Button,
+  Alert,
 } from 'antd';
 
 import {
@@ -20,14 +22,19 @@ import {
   TrophyOutlined,
   ThunderboltOutlined,
   SafetyOutlined,
+  SearchOutlined,
+  ExperimentOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 import { dashboardApi } from '../api';
 import type { DashboardData, Position, StockCandidate } from '../types/api';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [todayStocks, setTodayStocks] = useState<StockCandidate[]>([]);
@@ -141,7 +148,26 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      <Title level={2}>📊 交易仪表盘</Title>
+      <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Col>
+          <Title level={2} style={{ marginBottom: 4 }}>研究工作台</Title>
+          <Text type="secondary">真实行情研究、样本外验证与受控模拟盘</Text>
+        </Col>
+        <Col>
+          <Space wrap>
+            <Button icon={<SearchOutlined />} onClick={() => navigate('/screening')}>运行选股</Button>
+            <Button icon={<ExperimentOutlined />} onClick={() => navigate('/backtest')}>开始回测</Button>
+            <Button type="primary" icon={<SafetyCertificateOutlined />} onClick={() => navigate('/paper')}>进入模拟盘</Button>
+          </Space>
+        </Col>
+      </Row>
+      <Alert
+        type="info"
+        showIcon
+        message="当前为研究与模拟模式"
+        description="行情来自 AKShare（东方财富主源、失败时切换新浪）；模拟盘不连接券商，策略需通过样本外诊断才可申请准入。"
+        style={{ marginBottom: 20 }}
+      />
 
       {/* 账户概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
