@@ -74,6 +74,56 @@ def compare_tail_parameters(
     return sorted(rows, key=lambda row: (row["excess_return"], row["total_return"]), reverse=True)
 
 
+def walk_forward_validate(
+    frame: pd.DataFrame,
+    symbol: str,
+    initial_cash: float,
+    base: dict[str, Any],
+    train_ratio: float = 0.7,
+) -> dict[str, Any]:
+    data = frame.copy()
+    data["日期"] = pd.to_datetime(data["日期"])
+    data = data.sort_values("日期").drop_duplicates("日期").reset_index(drop=True)
+    if len(data) < 70:
+        raise HistoricalDataError("滚动验证至少需要 70 个交易日")
+    split_index = int(len(data) * train_ratio)
+    split_index = min(max(split_index, 45), len(data) - 20)
+    train = data.iloc[:split_index].copy()
+    validation_start = data.iloc[split_index]["日期"]
+    validation = data.iloc[max(0, split_index - 30):].copy()
+
+    ranking = compare_tail_parameters(train, symbol, initial_cash, base)
+    selected_name = ranking[0]["name"]
+    selected_params = dict(tail_parameter_variants(base)) [selected_name]
+    result = run_tail_backtest(
+        validation, symbol, initial_cash, selected_params,
+        evaluation_start_date=validation_start.strftime("%Y%m%d"),
+    )
+    return {
+        "symbol": symbol,
+        "train_start": train.iloc[0]["日期"].strftime("%Y-%m-%d"),
+        "train_end": train.iloc[-1]["日期"].strftime("%Y-%m-%d"),
+        "validation_start": validation_start.strftime("%Y-%m-%d"),
+        "validation_end": data.iloc[-1]["日期"].strftime("%Y-%m-%d"),
+        "selected_name": selected_name,
+        "selected_params": ranking[0]["params"],
+        "training_ranking": ranking,
+        "validation": {
+            "total_return": result.total_return * 100,
+            "annual_return": result.annual_return * 100,
+            "benchmark_return": result.benchmark_return * 100,
+            "excess_return": result.excess_return * 100,
+            "max_drawdown": result.max_drawdown,
+            "sharpe_ratio": result.sharpe_ratio,
+            "win_rate": result.win_rate * 100,
+            "total_trades": len(result.trades),
+            "profit_factor": result.profit_factor,
+            "equity_curve": result.equity_curve,
+            "trades": result.trades,
+        },
+    }
+
+
 def run_equal_weight_portfolio(
     frames: dict[str, pd.DataFrame],
     initial_cash: float,
@@ -214,6 +264,7 @@ def run_tail_backtest(
     symbol: str,
     initial_cash: float,
     params: dict[str, Any] | None = None,
+    evaluation_start_date: str | None = None,
 ) -> BacktestMetrics:
     """Daily-bar approximation: buy signal-day close and sell next-day open."""
     params = params or {}
@@ -229,6 +280,10 @@ def run_tail_backtest(
     data = data.dropna(subset=["开盘", "最高", "最低", "收盘", "成交量"])
     if len(data) < 22:
         raise HistoricalDataError("有效交易日不足 22 天，无法计算策略指标")
+    evaluation_start = pd.to_datetime(evaluation_start_date) if evaluation_start_date else data.iloc[0]["日期"]
+    evaluation_data = data[data["日期"] >= evaluation_start]
+    if len(evaluation_data) < 2:
+        raise HistoricalDataError("评估区间至少需要 2 个交易日")
 
     close = data["收盘"]
     data["prev_return"] = close.pct_change()
@@ -255,11 +310,13 @@ def run_tail_backtest(
     cash = float(initial_cash)
     total_commission = 0.0
     trades: list[dict[str, Any]] = []
-    equity = [{"date": data.iloc[0]["日期"].strftime("%Y-%m-%d"), "value": cash}]
+    equity = [{"date": evaluation_data.iloc[0]["日期"].strftime("%Y-%m-%d"), "value": cash}]
     for index in range(20, len(data) - 1):
         row = data.iloc[index]
         previous = data.iloc[index - 1]
         next_row = data.iloc[index + 1]
+        if row["日期"] < evaluation_start:
+            continue
         signal = (
             previous["prev_return"] >= 0.095
             and min_price <= row["收盘"] <= max_price
@@ -298,7 +355,7 @@ def run_tail_backtest(
         equity.append({"date": next_row["日期"].strftime("%Y-%m-%d"), "value": round(cash, 2)})
 
     returns = np.array([trade["profit_percent"] / 100 for trade in trades])
-    final_date = data.iloc[-1]["日期"].strftime("%Y-%m-%d")
+    final_date = evaluation_data.iloc[-1]["日期"].strftime("%Y-%m-%d")
     if equity[-1]["date"] != final_date:
         equity.append({"date": final_date, "value": round(cash, 2)})
     values = np.array([point["value"] for point in equity], dtype=float)
@@ -306,9 +363,9 @@ def run_tail_backtest(
     drawdown = np.max((peaks - values) / peaks) if len(values) else 0
     sharpe = float(returns.mean() / returns.std(ddof=1) * np.sqrt(252)) if len(returns) > 1 and returns.std(ddof=1) else 0
     total_return = cash / initial_cash - 1
-    elapsed_days = max(1, (data.iloc[-1]["日期"] - data.iloc[0]["日期"]).days)
+    elapsed_days = max(1, (evaluation_data.iloc[-1]["日期"] - evaluation_data.iloc[0]["日期"]).days)
     annual_return = (1 + total_return) ** (365 / elapsed_days) - 1 if total_return > -1 else -1
-    benchmark_return = float(data.iloc[-1]["收盘"] / data.iloc[0]["收盘"] - 1)
+    benchmark_return = float(evaluation_data.iloc[-1]["收盘"] / evaluation_data.iloc[0]["收盘"] - 1)
     wins = returns[returns > 0]
     losses = returns[returns < 0]
     profit_factor = float(wins.sum() / abs(losses.sum())) if len(losses) and abs(losses.sum()) else None

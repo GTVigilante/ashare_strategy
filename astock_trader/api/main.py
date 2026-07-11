@@ -25,7 +25,7 @@ from strategies.tail_strategy import TailStrategy
 from strategies.config import load_strategy_config
 from services.backtest_service import (
     HistoricalDataError, compare_tail_parameters, fetch_daily_data, run_equal_weight_portfolio,
-    run_tail_backtest,
+    run_tail_backtest, walk_forward_validate,
 )
 from services.screening_service import ScreeningDataError, screen_tail_candidates
 from services.auth_service import SessionStore, password_matches
@@ -489,6 +489,23 @@ def compare_backtests(request: BacktestRequest):
             "end_date": request.end_date,
             "ranking": rows,
         })
+    except HistoricalDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/api/backtest/walk-forward")
+def walk_forward_backtest(request: BacktestRequest):
+    if request.strategy_name not in ("tail", "尾盘策略"):
+        raise HTTPException(status_code=422, detail="滚动验证当前仅支持尾盘策略")
+    try:
+        symbol = request.symbols[0]
+        config = load_strategy_config()
+        params = {
+            **config.get("strategies", {}).get("tail", {}).get("params", {}),
+            **config.get("backtest", {}),
+        }
+        frame = fetch_daily_data(symbol, request.start_date, request.end_date)
+        return success_response(walk_forward_validate(frame, symbol, request.initial_cash, params))
     except HistoricalDataError as e:
         raise HTTPException(status_code=422, detail=str(e))
 

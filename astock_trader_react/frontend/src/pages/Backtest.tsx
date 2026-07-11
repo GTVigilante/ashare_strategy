@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 import { Line } from '@ant-design/charts';
 
 import { backtestApi } from '../api';
-import type { BacktestResult, BacktestTrade, ParameterComparison } from '../types/api';
+import type { BacktestResult, BacktestTrade, ParameterComparison, WalkForwardResult } from '../types/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -43,6 +43,8 @@ export default function Backtest() {
   const [comparison, setComparison] = useState<ParameterComparison[]>([]);
   const [comparing, setComparing] = useState(false);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [walkForwardLoading, setWalkForwardLoading] = useState(false);
+  const [walkForward, setWalkForward] = useState<WalkForwardResult | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -134,6 +136,26 @@ export default function Backtest() {
       if (detail) message.error(detail);
     } finally {
       setPortfolioLoading(false);
+    }
+  };
+
+  const handleWalkForward = async () => {
+    try {
+      const values = await form.validateFields();
+      setWalkForwardLoading(true);
+      const res = await backtestApi.walkForward({
+        strategy: values.strategy,
+        start_date: values.dates[0].format('YYYYMMDD'),
+        end_date: values.dates[1].format('YYYYMMDD'),
+        initial_cash: values.initial_cash || 100000,
+        symbols: [values.symbol],
+      });
+      if (res.code === 0) setWalkForward(res.data);
+    } catch (error) {
+      const detail = (error as any)?.response?.data?.detail;
+      if (detail) message.error(detail);
+    } finally {
+      setWalkForwardLoading(false);
     }
   };
 
@@ -329,6 +351,9 @@ export default function Backtest() {
               <Button block onClick={handleCompare} loading={comparing}>
                 对比三组参数
               </Button>
+              <Button block onClick={handleWalkForward} loading={walkForwardLoading} style={{ marginTop: 8 }}>
+                运行 70/30 样本外验证
+              </Button>
 
               <Form.Item
                 label="组合股票"
@@ -511,6 +536,25 @@ export default function Backtest() {
             ]}
           />
           <Text type="secondary">排行榜按超额收益排序。参数比较使用完全相同的股票、区间、初始资金和行情数据。</Text>
+        </Card>
+      )}
+
+      {walkForward && (
+        <Card title="样本外验证" style={{ marginTop: 16 }}>
+          <Descriptions bordered column={3} size="small">
+            <Descriptions.Item label="训练区间">{walkForward.train_start} 至 {walkForward.train_end}</Descriptions.Item>
+            <Descriptions.Item label="验证区间">{walkForward.validation_start} 至 {walkForward.validation_end}</Descriptions.Item>
+            <Descriptions.Item label="训练选中参数">{walkForward.selected_name}</Descriptions.Item>
+            <Descriptions.Item label="样本外总收益">{walkForward.validation.total_return.toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="样本外基准">{(walkForward.validation.benchmark_return ?? 0).toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="样本外超额">{(walkForward.validation.excess_return ?? 0).toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="最大回撤">{walkForward.validation.max_drawdown.toFixed(2)}%</Descriptions.Item>
+            <Descriptions.Item label="交易次数">{walkForward.validation.total_trades}</Descriptions.Item>
+            <Descriptions.Item label="胜率">{walkForward.validation.win_rate.toFixed(1)}%</Descriptions.Item>
+          </Descriptions>
+          <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+            训练段用于选择参数；验证段只使用选定参数。验证前历史仅用于指标预热，不允许产生交易。
+          </Text>
         </Card>
       )}
     </div>

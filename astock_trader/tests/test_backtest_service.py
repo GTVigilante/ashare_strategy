@@ -7,6 +7,7 @@ import pandas as pd
 from services.backtest_service import (
     HistoricalDataError, compare_tail_parameters, fetch_daily_data,
     run_equal_weight_portfolio, run_tail_backtest,
+    walk_forward_validate,
 )
 
 
@@ -105,6 +106,28 @@ class TailBacktestTests(unittest.TestCase):
         self.assertEqual(len(result.trades), 2)
         self.assertGreater(result.final_value, 100_000)
         self.assertGreaterEqual(len(result.equity_curve), 2)
+
+    def test_walk_forward_never_trades_in_training_period(self):
+        dates = pd.bdate_range("2024-01-01", periods=100)
+        closes = [10 + index * 0.03 for index in range(100)]
+        for index in (25, 50, 75, 90):
+            closes[index] = closes[index - 1] * 1.10
+        frame = pd.DataFrame({
+            "日期": dates, "开盘": closes,
+            "最高": [value * 1.01 for value in closes],
+            "最低": [value * 0.99 for value in closes], "收盘": closes,
+            "成交量": [1_000_000] * 100,
+        })
+        result = walk_forward_validate(
+            frame, "000001", 100_000,
+            {"commission": 0.0003, "slippage": 0.001},
+        )
+        validation_start = pd.Timestamp(result["validation_start"])
+        self.assertEqual(len(result["training_ranking"]), 3)
+        self.assertTrue(all(
+            pd.Timestamp(trade["buy_date"]) >= validation_start
+            for trade in result["validation"]["trades"]
+        ))
 
 
 if __name__ == "__main__":

@@ -153,6 +153,21 @@ export interface ParameterComparison {
   total_commission: number;
 }
 
+export interface WalkForwardResult {
+  symbol: string;
+  train_start: string;
+  train_end: string;
+  validation_start: string;
+  validation_end: string;
+  selected_name: string;
+  selected_params: Record<string, number | boolean | undefined>;
+  training_ranking: ParameterComparison[];
+  validation: Pick<BacktestResult,
+    'total_return' | 'annual_return' | 'benchmark_return' | 'excess_return' |
+    'max_drawdown' | 'sharpe_ratio' | 'win_rate' | 'total_trades' | 'profit_factor' |
+    'equity_curve' | 'trades'>;
+}
+
 // ============ 自选股 ============
 
 export interface WatchStock {

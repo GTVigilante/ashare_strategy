@@ -9,6 +9,7 @@ import type {
   KLineData,
   BacktestResult,
   ParameterComparison,
+  WalkForwardResult,
   PageResponse,
   WatchStock,
   Signal,
@@ -169,6 +170,14 @@ export const backtestApi = {
     initial_cash?: number;
     symbols: string[];
   }): Promise<ApiResponse<BacktestResult>> => api.post('/backtest/portfolio', data),
+
+  walkForward: (data: {
+    strategy: string;
+    start_date: string;
+    end_date: string;
+    initial_cash?: number;
+    symbols: string[];
+  }): Promise<ApiResponse<WalkForwardResult>> => api.post('/backtest/walk-forward', data),
 };
 
 // ============ 自选股 API ============
