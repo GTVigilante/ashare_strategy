@@ -1,5 +1,5 @@
 // 回测页面
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Card,
   Row,
@@ -56,6 +56,13 @@ export default function Backtest() {
   const [multiWalkLoading, setMultiWalkLoading] = useState(false);
   const [multiWalk, setMultiWalk] = useState<MultiWalkForwardResult | null>(null);
   const [form] = Form.useForm();
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentResult) {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentResult]);
 
   useEffect(() => {
     fetchHistory();
@@ -422,6 +429,7 @@ export default function Backtest() {
 
         {/* 回测结果 */}
         <Col xs={24} xl={16}>
+          <div ref={resultRef}>
           <Card title="回测结果">
             {loading ? (
               <div style={{ textAlign: 'center', padding: 50 }}>
@@ -429,6 +437,15 @@ export default function Backtest() {
               </div>
             ) : currentResult ? (
               <>
+                {currentResult.total_trades === 0 && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    title="回测已成功完成，但没有触发交易信号"
+                    description="当前股票在所选区间内没有同时满足昨日涨停、价格、量比、振幅和技术过滤条件。可以更换股票、扩大日期区间，或在配置页调整过滤参数。"
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
                 {/* 核心指标 */}
                 {currentResult.model === 'fixed_equal_weight_subaccounts' && (
                   <Tag color="purple" style={{ marginBottom: 16 }}>
@@ -536,6 +553,7 @@ export default function Backtest() {
               </div>
             )}
           </Card>
+          </div>
         </Col>
       </Row>
 
