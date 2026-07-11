@@ -280,16 +280,9 @@ export interface Position {
   profit_rate: number;
 }
 
-export interface SignalCount {
-  pending: number;
-  today_buy: number;
-  today_sell: number;
-}
-
 export interface DashboardData {
   account: AccountInfo;
   positions: Position[];
-  signals: SignalCount;
   backtest: {
     latest_id: number;
     total_return: number;

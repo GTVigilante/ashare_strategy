@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.database import (
     get_db, StrategyRepository, StockWatchRepository, 
-    OrderRepository, BacktestRepository
+    BacktestRepository
 )
 from strategies.base import StrategyRegistry
 from strategies.tail_strategy import TailStrategy
@@ -35,7 +35,7 @@ from config.settings import APP_PASSWORD, SESSION_TTL_SECONDS, CORS_ORIGINS, API
 # 创建应用
 app = FastAPI(
     title="A股量化交易API",
-    description="策略管理、选股、回测、信号生成",
+    description="策略配置、真实行情选股、回测验证与受控模拟盘",
     version="1.0.0"
 )
 
@@ -643,11 +643,6 @@ def get_dashboard():
                 "today_profit_rate": paper["daily_return"] * 100,
             },
             "positions": positions,
-            "signals": {
-                "pending": 0,
-                "today_buy": 0,
-                "today_sell": 0,
-            },
             "backtest": {
                 "latest_id": recent_backtests[0].id if recent_backtests else 0,
                 "total_return": total_return * 100,
@@ -667,7 +662,6 @@ def get_dashboard():
         data = {
             "account": {"total_assets": 100000, "cash": 100000, "stocks_value": 0, "today_profit": 0, "today_profit_rate": 0},
             "positions": [],
-            "signals": {"pending": 0, "today_buy": 0, "today_sell": 0},
             "backtest": {"latest_id": 0, "total_return": 0, "max_drawdown": 0, "win_rate": 0, "sharpe_ratio": 0},
             "watchlist_count": 0,
             "strategy_count": 0,
@@ -685,44 +679,6 @@ def get_today_stocks():
         "date": latest_screening["date"] or datetime.now().strftime("%Y-%m-%d"),
         "candidates": latest_screening["candidates"],
     })
-
-
-# ============== 交易信号API ==============
-
-@app.get("/api/signals")
-def get_signals(
-    strategy: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=200)
-):
-    """获取交易信号"""
-    # TODO: 从数据库获取信号
-    return success_response({"total": 0, "page": 1, "page_size": limit, "list": []}, "暂无交易信号")
-
-
-# ============== 订单API ==============
-
-@app.get("/api/orders")
-def list_orders(limit: int = Query(100, ge=1, le=500)):
-    """获取订单列表"""
-    repo = OrderRepository(db)
-    orders = repo.get_all(limit)
-    
-    data = [
-        {
-            "id": o.id,
-            "order_id": o.order_id,
-            "symbol": o.symbol,
-            "name": o.name,
-            "direction": o.direction,
-            "price": o.price,
-            "quantity": o.quantity,
-            "amount": o.amount,
-            "status": o.status,
-            "created_at": o.created_at.isoformat() if o.created_at else None
-        }
-        for o in orders
-    ]
-    return success_response({"total": len(data), "page": 1, "page_size": limit, "list": data})
 
 
 # ============== 健康检查 ==============
