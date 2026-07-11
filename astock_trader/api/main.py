@@ -52,6 +52,7 @@ app.add_middleware(
 db = get_db()
 sessions = SessionStore(SESSION_TTL_SECONDS)
 paper_engine = PaperTradingEngine()
+latest_screening: Dict[str, Any] = {"date": None, "candidates": []}
 
 
 def tail_runtime_params(include_backtest: bool = False) -> Dict[str, Any]:
@@ -350,6 +351,8 @@ def screen_stocks(
         screen_date = date or datetime.now().strftime("%Y%m%d")
         configured = tail_runtime_params()
         result = screen_tail_candidates(screen_date, configured)
+        latest_screening["date"] = result["pool_date"]
+        latest_screening["candidates"] = result["stocks"]
         return success_response({
             "date": screen_date,
             "pool_date": result["pool_date"],
@@ -660,10 +663,10 @@ def get_dashboard():
 
 @app.get("/api/dashboard/today-stocks")
 def get_today_stocks():
-    """获取今日选股"""
+    """获取本次服务运行期间最近一次真实筛选结果。"""
     return success_response({
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "candidates": []
+        "date": latest_screening["date"] or datetime.now().strftime("%Y-%m-%d"),
+        "candidates": latest_screening["candidates"],
     })
 
 

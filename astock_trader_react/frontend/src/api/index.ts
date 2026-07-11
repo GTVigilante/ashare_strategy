@@ -4,17 +4,12 @@ import type {
   ApiResponse,
   Strategy,
   StockCandidate,
-  StockInfo,
-  StockIndicators,
-  KLineData,
   BacktestResult,
   ParameterComparison,
   WalkForwardResult,
   MultiWalkForwardResult,
   PageResponse,
   WatchStock,
-  Signal,
-  Order,
   DashboardData,
   PaperOrder,
   PaperStatus,
@@ -106,33 +101,6 @@ export const screenApi = {
     }>
   > => api.get('/screen', { params, timeout: 120000 }),
 
-  // 获取股票详情
-  getStock: (
-    symbol: string
-  ): Promise<
-    ApiResponse<
-      StockInfo & {
-        indicators: StockIndicators;
-      }
-    >
-  > => api.get(`/stock/${symbol}`),
-
-  // 获取K线数据
-  getKLine: (
-    symbol: string,
-    params?: {
-      period?: 'day' | 'week' | 'month' | 'minute';
-      start_date?: string;
-      end_date?: string;
-    }
-  ): Promise<
-    ApiResponse<{
-      symbol: string;
-      name: string;
-      period: string;
-      data: KLineData[];
-    }>
-  > => api.get(`/stock/${symbol}/kline`, { params }),
 };
 
 // ============ 回测 API ============
@@ -154,10 +122,6 @@ export const backtestApi = {
     page_size?: number;
   }): Promise<ApiResponse<PageResponse<BacktestResult>>> =>
     api.get('/backtest/history', { params }),
-
-  // 获取回测详情
-  get: (id: number): Promise<ApiResponse<BacktestResult>> =>
-    api.get(`/backtest/${id}`),
 
   compare: (data: {
     strategy: string;
@@ -210,48 +174,6 @@ export const watchApi = {
   // 删除自选股
   remove: (symbol: string): Promise<ApiResponse> =>
     api.delete(`/watch/${symbol}`),
-};
-
-// ============ 信号 API ============
-
-export const signalApi = {
-  // 获取信号列表
-  list: (params?: {
-    strategy?: string;
-    status?: string;
-    page?: number;
-    page_size?: number;
-  }): Promise<ApiResponse<PageResponse<Signal>>> =>
-    api.get('/signals', { params }),
-
-  // 执行信号
-  execute: (id: number): Promise<ApiResponse<{ order_id: string }>> =>
-    api.post(`/signals/${id}/execute`),
-
-  // 取消信号
-  cancel: (id: number): Promise<ApiResponse> =>
-    api.post(`/signals/${id}/cancel`),
-};
-
-// ============ 订单 API ============
-
-export const orderApi = {
-  // 获取订单列表
-  list: (params?: {
-    status?: string;
-    symbol?: string;
-    page?: number;
-    page_size?: number;
-  }): Promise<ApiResponse<PageResponse<Order>>> =>
-    api.get('/orders', { params }),
-
-  // 获取订单详情
-  get: (orderId: string): Promise<ApiResponse<Order>> =>
-    api.get(`/orders/${orderId}`),
-
-  // 撤单
-  cancel: (orderId: string): Promise<ApiResponse> =>
-    api.post(`/orders/${orderId}/cancel`),
 };
 
 // ============ Dashboard API ============

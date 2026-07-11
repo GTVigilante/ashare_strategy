@@ -6,6 +6,7 @@ from api.main import (
     list_watch, paper_status, StrategyConfigUpdate, update_strategy,
     tail_runtime_params,
     toggle_strategy,
+    get_today_stocks, latest_screening,
 )
 
 
@@ -78,6 +79,19 @@ class ApiContractTests(unittest.TestCase):
             "尾盘策略", {"min_price": 8}, enabled=False,
         )
         self.assertFalse(response["data"]["enabled"])
+
+    def test_dashboard_candidates_use_latest_real_screening_result(self):
+        original = dict(latest_screening)
+        try:
+            latest_screening.update({
+                "date": "20260711",
+                "candidates": [{"symbol": "000001", "name": "测试股"}],
+            })
+            response = get_today_stocks()
+            self.assertEqual(response["data"]["date"], "20260711")
+            self.assertEqual(response["data"]["candidates"][0]["symbol"], "000001")
+        finally:
+            latest_screening.update(original)
 
 
 if __name__ == "__main__":
