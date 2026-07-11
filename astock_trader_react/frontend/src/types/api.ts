@@ -322,3 +322,10 @@ export interface PaperStatus {
   orders: PaperOrder[];
   limits: { max_position: number; daily_loss: number; max_drawdown: number };
 }
+
+export interface PaperApproval {
+  approval_token: string;
+  expires_in: number;
+  symbol: string;
+  diagnostic: MultiWalkForwardResult['diagnostic'];
+}
