@@ -95,12 +95,13 @@ export const screenApi = {
       date: string;
       pool_date: string;
       pool_size: number;
+      processed: number;
       strategy: string;
       total: number;
       stocks: StockCandidate[];
       skipped_errors: number;
     }>
-  > => api.get('/screen', { params }),
+  > => api.get('/screen', { params, timeout: 120000 }),
 
   // 获取股票详情
   getStock: (

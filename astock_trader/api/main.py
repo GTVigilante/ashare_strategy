@@ -320,6 +320,7 @@ def screen_stocks(
             "date": screen_date,
             "pool_date": result["pool_date"],
             "pool_size": result["pool_size"],
+            "processed": result["processed"],
             "strategy": strategy,
             "total": len(result["stocks"]),
             "stocks": result["stocks"],

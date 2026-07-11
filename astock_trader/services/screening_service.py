@@ -46,7 +46,7 @@ def screen_tail_candidates(
     params: dict[str, Any],
     pool_fetcher: Callable[[str], pd.DataFrame] = fetch_limit_up_pool,
     history_fetcher: Callable[[str, str, str], pd.DataFrame] = fetch_daily_data,
-    max_candidates: int = 20,
+    max_candidates: int = 10,
 ) -> dict[str, Any]:
     pool_date, pool = find_previous_limit_up_pool(date, pool_fetcher)
     required = {"代码", "名称"}
@@ -124,4 +124,5 @@ def screen_tail_candidates(
             errors.append(f"{symbol}: {exc}")
 
     candidates.sort(key=lambda item: item["confidence"], reverse=True)
-    return {"pool_date": pool_date, "pool_size": len(pool), "stocks": candidates, "errors": errors}
+    return {"pool_date": pool_date, "pool_size": len(pool),
+            "processed": min(len(pool), max_candidates), "stocks": candidates, "errors": errors}

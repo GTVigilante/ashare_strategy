@@ -15,6 +15,7 @@ import {
   Modal,
   Spin,
   message,
+  Alert,
 } from 'antd';
 
 import {
@@ -46,7 +47,7 @@ export default function Screening() {
       const res = await screenApi.screen({ date, strategy });
       if (res.code === 0) {
         setStocks(res.data.stocks || []);
-        setPoolInfo(`基于 ${res.data.pool_date} 涨停池 ${res.data.pool_size} 只`);
+        setPoolInfo(`${res.data.pool_date} 涨停池 ${res.data.pool_size} 只 · 深度分析前 ${res.data.processed} 只`);
         if (!res.data.stocks?.length) message.info('真实数据获取成功，但没有股票通过全部条件');
       }
     } catch (error) {
@@ -228,6 +229,12 @@ export default function Screening() {
           </Col>
         </Row>
       </Card>
+      <Alert
+        type="info"
+        showIcon
+        message="首次筛选需要下载候选股历史行情，可能耗时 10-60 秒；后续相同区间会命中本地缓存。"
+        style={{ marginBottom: 16 }}
+      />
 
       {/* 筛选结果 */}
       <Card
