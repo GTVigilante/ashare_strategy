@@ -7,7 +7,7 @@ import pandas as pd
 from services.backtest_service import (
     HistoricalDataError, compare_tail_parameters, fetch_daily_data,
     run_equal_weight_portfolio, run_tail_backtest,
-    multi_window_walk_forward, walk_forward_validate,
+    diagnose_walk_forward, multi_window_walk_forward, walk_forward_validate,
 )
 
 
@@ -146,6 +146,24 @@ class TailBacktestTests(unittest.TestCase):
         self.assertEqual(windows[1]["opening_cash"], windows[0]["closing_cash"])
         self.assertLess(pd.Timestamp(windows[0]["validation_end"]), pd.Timestamp(windows[1]["validation_start"]))
         self.assertEqual(sum(result["summary"]["selection_counts"].values()), 3)
+        self.assertIn(result["diagnostic"]["verdict"], {"promising", "caution", "weak"})
+
+    def test_diagnostic_rejects_thin_underperforming_evidence(self):
+        report = {
+            "window_count": 2,
+            "windows": [
+                {"total_return": -2, "total_trades": 1},
+                {"total_return": 8, "total_trades": 1},
+            ],
+            "summary": {
+                "positive_windows": 1, "excess_return": -3,
+                "max_drawdown": 15, "selection_counts": {"标准": 1, "宽松": 1},
+            },
+        }
+        diagnostic = diagnose_walk_forward(report)
+        self.assertEqual(diagnostic["verdict"], "weak")
+        self.assertLess(diagnostic["score"], 50)
+        self.assertTrue(any("未跑赢基准" in issue for issue in diagnostic["issues"]))
 
 
 if __name__ == "__main__":

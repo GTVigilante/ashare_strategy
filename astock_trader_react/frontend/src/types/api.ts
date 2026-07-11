@@ -199,6 +199,16 @@ export interface MultiWalkForwardResult {
     selection_counts: Record<string, number>;
     equity_curve: EquityPoint[];
   };
+  diagnostic: {
+    score: number;
+    verdict: 'promising' | 'caution' | 'weak';
+    label: string;
+    issues: string[];
+    strengths: string[];
+    recommendations: string[];
+    evidence: Record<string, number>;
+    disclaimer: string;
+  };
 }
 
 // ============ 自选股 ============

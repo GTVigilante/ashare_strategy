@@ -185,7 +185,7 @@ def multi_window_walk_forward(
     selections: dict[str, int] = {}
     for window in windows:
         selections[window["selected_name"]] = selections.get(window["selected_name"], 0) + 1
-    return {
+    report = {
         "symbol": symbol,
         "train_days": train_days,
         "validation_days": validation_days,
@@ -202,6 +202,86 @@ def multi_window_walk_forward(
             "selection_counts": selections,
             "equity_curve": combined_curve,
         },
+    }
+    report["diagnostic"] = diagnose_walk_forward(report)
+    return report
+
+
+def diagnose_walk_forward(report: dict[str, Any]) -> dict[str, Any]:
+    """Apply deterministic research-quality guardrails to walk-forward output."""
+    windows = report.get("windows", [])
+    summary = report.get("summary", {})
+    count = max(1, int(report.get("window_count", len(windows))))
+    score = 100
+    issues = []
+    strengths = []
+    recommendations = []
+
+    total_trades = sum(int(window.get("total_trades", 0)) for window in windows)
+    positive_ratio = float(summary.get("positive_windows", 0)) / count
+    excess = float(summary.get("excess_return", 0))
+    drawdown = float(summary.get("max_drawdown", 0))
+    selection_counts = summary.get("selection_counts", {})
+    stability = max(selection_counts.values(), default=0) / count
+    absolute_returns = [abs(float(window.get("total_return", 0))) for window in windows]
+    concentration = max(absolute_returns, default=0) / sum(absolute_returns) if sum(absolute_returns) else 0
+
+    if count < 3:
+        score -= 15
+        issues.append("独立验证窗口少于 3 个，跨市场阶段证据不足")
+        recommendations.append("扩大历史区间，获得至少 3 个独立验证窗口")
+    if total_trades < 10:
+        score -= 20
+        issues.append(f"样本外交易仅 {total_trades} 笔，统计稳定性不足")
+        recommendations.append("扩展股票池或时间区间，先积累至少 10 笔样本外交易")
+    else:
+        strengths.append(f"样本外累计 {total_trades} 笔交易")
+    if excess <= 0:
+        score -= 25
+        issues.append(f"样本外累计超额收益为 {excess:.2f}%，未跑赢基准")
+        recommendations.append("重新检查信号有效性，不要仅通过放宽参数增加交易")
+    else:
+        strengths.append(f"样本外累计超额收益为 {excess:.2f}%")
+    if positive_ratio < 0.5:
+        score -= 15
+        issues.append(f"仅 {positive_ratio:.0%} 的验证窗口取得正收益")
+    else:
+        strengths.append(f"{positive_ratio:.0%} 的验证窗口取得正收益")
+    if drawdown > 10:
+        score -= 15
+        issues.append(f"样本外最大回撤 {drawdown:.2f}% 超过 10%")
+        recommendations.append("降低单股仓位或增加组合分散约束")
+    if stability < 0.6:
+        score -= 10
+        issues.append("最佳参数在窗口间频繁切换，参数稳定性较弱")
+        recommendations.append("减少参数自由度，优先寻找跨窗口都稳健的配置")
+    else:
+        strengths.append(f"主导参数在 {stability:.0%} 的窗口中被选中")
+    if concentration > 0.6 and count > 1:
+        score -= 15
+        issues.append("超过 60% 的绝对收益变化集中在单一窗口")
+        recommendations.append("检查策略是否只依赖单一行情阶段")
+
+    score = max(0, min(100, score))
+    if score >= 75:
+        verdict, label = "promising", "值得继续研究"
+    elif score >= 50:
+        verdict, label = "caution", "证据有限，需谨慎"
+    else:
+        verdict, label = "weak", "暂不支持进入模拟盘"
+    if not recommendations:
+        recommendations.append("增加股票和时间跨度后再次运行样本外验证")
+    return {
+        "score": score, "verdict": verdict, "label": label,
+        "issues": issues, "strengths": strengths,
+        "recommendations": list(dict.fromkeys(recommendations)),
+        "evidence": {
+            "window_count": count, "total_trades": total_trades,
+            "positive_window_ratio": positive_ratio,
+            "parameter_stability": stability,
+            "return_concentration": concentration,
+        },
+        "disclaimer": "规则化研究诊断，不构成投资建议或实盘准入结论。",
     }
 
 

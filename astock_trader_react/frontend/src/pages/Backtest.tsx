@@ -18,6 +18,9 @@ import {
   Spin,
   message,
   Descriptions,
+  Alert,
+  List,
+  Progress,
 } from 'antd';
 
 import {
@@ -585,6 +588,26 @@ export default function Backtest() {
 
       {multiWalk && (
         <Card title="多窗口 Walk-Forward" style={{ marginTop: 16 }}>
+          <Alert
+            type={multiWalk.diagnostic.verdict === 'promising' ? 'success' : multiWalk.diagnostic.verdict === 'caution' ? 'warning' : 'error'}
+            showIcon
+            message={`策略诊断：${multiWalk.diagnostic.label}`}
+            description={multiWalk.diagnostic.disclaimer}
+            style={{ marginBottom: 16 }}
+          />
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}>
+              <Progress type="dashboard" percent={multiWalk.diagnostic.score} format={(value) => `${value}分`} />
+            </Col>
+            <Col span={9}>
+              <Title level={5}>主要问题</Title>
+              <List size="small" dataSource={multiWalk.diagnostic.issues} locale={{ emptyText: '未触发主要风险规则' }} renderItem={(item) => <List.Item>{item}</List.Item>} />
+            </Col>
+            <Col span={9}>
+              <Title level={5}>下一步建议</Title>
+              <List size="small" dataSource={multiWalk.diagnostic.recommendations} renderItem={(item) => <List.Item>{item}</List.Item>} />
+            </Col>
+          </Row>
           <Descriptions bordered column={4} size="small" style={{ marginBottom: 16 }}>
             <Descriptions.Item label="窗口数">{multiWalk.window_count}</Descriptions.Item>
             <Descriptions.Item label="累计收益">{multiWalk.summary.total_return.toFixed(2)}%</Descriptions.Item>
