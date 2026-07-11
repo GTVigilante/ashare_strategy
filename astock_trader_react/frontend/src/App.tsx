@@ -15,6 +15,7 @@ import {
   ExperimentOutlined,
   SettingOutlined,
   StarOutlined,
+  SafetyCertificateOutlined,
   MenuOutlined,
   QuestionCircleOutlined,
   LogoutOutlined,
@@ -26,13 +27,14 @@ import Screening from './pages/Screening';
 import Backtest from './pages/Backtest';
 import Config from './pages/Config';
 import Watchlist from './pages/Watchlist';
+import PaperTrading from './pages/PaperTrading';
 import './App.css';
 import { authApi } from './api';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
-type PageKey = 'dashboard' | 'screening' | 'backtest' | 'watchlist' | 'config';
+type PageKey = 'dashboard' | 'screening' | 'backtest' | 'paper' | 'watchlist' | 'config';
 
 function App() {
   const [authenticated, setAuthenticated] = useState(authApi.hasSession());
@@ -77,6 +79,7 @@ function App() {
     { key: 'dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
     { key: 'screening', icon: <SearchOutlined />, label: '选股' },
     { key: 'backtest', icon: <ExperimentOutlined />, label: '回测' },
+    { key: 'paper', icon: <SafetyCertificateOutlined />, label: '模拟盘' },
     { key: 'watchlist', icon: <StarOutlined />, label: '自选股' },
     { key: 'config', icon: <SettingOutlined />, label: '配置' },
   ];
@@ -86,6 +89,7 @@ function App() {
       case 'dashboard': return <Dashboard />;
       case 'screening': return <Screening />;
       case 'backtest': return <Backtest />;
+      case 'paper': return <PaperTrading />;
       case 'watchlist': return <Watchlist />;
       case 'config': return <Config />;
       default: return <Dashboard />;

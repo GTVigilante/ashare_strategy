@@ -29,6 +29,7 @@ from services.backtest_service import (
 )
 from services.screening_service import ScreeningDataError, screen_tail_candidates
 from services.auth_service import SessionStore, password_matches
+from services.paper_trading_service import PaperTradingEngine, PaperTradingError
 from config.settings import APP_PASSWORD, SESSION_TTL_SECONDS, CORS_ORIGINS, API_HOST, API_PORT
 
 # 创建应用
@@ -50,6 +51,7 @@ app.add_middleware(
 # 初始化数据库
 db = get_db()
 sessions = SessionStore(SESSION_TTL_SECONDS)
+paper_engine = PaperTradingEngine()
 
 
 def bearer_token(request: Request) -> Optional[str]:
@@ -148,6 +150,14 @@ class StockQuery(BaseModel):
 
 class LoginRequest(BaseModel):
     password: str
+
+
+class PaperOrderRequest(BaseModel):
+    approval_token: str
+    symbol: str
+    side: str
+    quantity: int
+    price: float
 
 
 @app.post("/api/auth/login")
@@ -524,6 +534,41 @@ def multi_walk_forward_backtest(request: BacktestRequest):
         frame = fetch_daily_data(symbol, request.start_date, request.end_date)
         return success_response(multi_window_walk_forward(frame, symbol, request.initial_cash, params))
     except HistoricalDataError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/api/paper/approve")
+def approve_paper_strategy(request: BacktestRequest):
+    """后端重新诊断策略，达标后签发一小时模拟盘准入。"""
+    try:
+        symbol = request.symbols[0]
+        config = load_strategy_config()
+        params = {
+            **config.get("strategies", {}).get("tail", {}).get("params", {}),
+            **config.get("backtest", {}),
+        }
+        frame = fetch_daily_data(symbol, request.start_date, request.end_date)
+        report = multi_window_walk_forward(frame, symbol, request.initial_cash, params)
+        diagnostic = report["diagnostic"]
+        token = paper_engine.approve(symbol, diagnostic["score"])
+        return success_response({"approval_token": token, "expires_in": 3600,
+                                 "symbol": symbol, "diagnostic": diagnostic})
+    except (HistoricalDataError, PaperTradingError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.get("/api/paper/status")
+def paper_status():
+    return success_response(paper_engine.status())
+
+
+@app.post("/api/paper/orders")
+def place_paper_order(request: PaperOrderRequest):
+    try:
+        order = paper_engine.execute(request.approval_token, request.symbol, request.side,
+                                     request.quantity, request.price)
+        return success_response(order, "模拟成交")
+    except PaperTradingError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
 

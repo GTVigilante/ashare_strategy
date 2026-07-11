@@ -265,4 +265,12 @@ export const dashboardApi = {
   > => api.get('/dashboard/today-stocks'),
 };
 
+export const paperApi = {
+  approve: (data: { strategy: string; start_date: string; end_date: string; initial_cash: number; symbols: string[] }) =>
+    api.post('/paper/approve', data),
+  status: () => api.get('/paper/status'),
+  order: (data: { approval_token: string; symbol: string; side: 'buy' | 'sell'; quantity: number; price: number }) =>
+    api.post('/paper/orders', data),
+};
+
 export default api;
