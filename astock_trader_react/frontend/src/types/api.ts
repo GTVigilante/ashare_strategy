@@ -64,6 +64,34 @@ export interface StockCandidate extends StockInfo {
   reason?: string;
 }
 
+export type ScreeningDetailStatus = 'selected' | 'rejected' | 'error';
+
+export interface ScreeningDetail {
+  symbol: string;
+  name: string;
+  status: ScreeningDetailStatus;
+  reason: string;
+}
+
+export interface ScreeningJob {
+  job_id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  date: string;
+  strategy: string;
+  pool_date: string | null;
+  pool_size: number;
+  processed: number;
+  selected: number;
+  current_symbol: string | null;
+  current_name: string | null;
+  details: ScreeningDetail[];
+  stocks: StockCandidate[];
+  errors: string[];
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
 export interface StockIndicators {
   ma5?: number;
   ma10?: number;

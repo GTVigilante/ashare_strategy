@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from uuid import uuid4
 import pandas as pd
 import sys
 from pathlib import Path
@@ -53,6 +56,9 @@ db = get_db()
 sessions = SessionStore(SESSION_TTL_SECONDS)
 paper_engine = PaperTradingEngine()
 latest_screening: Dict[str, Any] = {"date": None, "candidates": []}
+screen_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="screening")
+screen_jobs: Dict[str, Dict[str, Any]] = {}
+screen_jobs_lock = Lock()
 
 
 def tail_runtime_params(include_backtest: bool = False) -> Dict[str, Any]:
@@ -120,6 +126,21 @@ class StockWatchAdd(BaseModel):
     @classmethod
     def normalize_tags(cls, values: List[str]) -> List[str]:
         return list(dict.fromkeys(value.strip() for value in values if value.strip()))[:10]
+
+
+class ScreeningJobRequest(BaseModel):
+    date: Optional[str] = None
+    strategy: str = "尾盘策略"
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, value: Optional[str]) -> Optional[str]:
+        if value:
+            try:
+                datetime.strptime(value, "%Y%m%d")
+            except ValueError as exc:
+                raise ValueError("日期必须使用 YYYYMMDD 格式") from exc
+        return value
 
 
 class BacktestRequest(BaseModel):
@@ -352,6 +373,90 @@ def remove_watch(symbol: str):
 
 
 # ============== 选股API ==============
+
+def run_screening_job(job_id: str, screen_date: str, strategy: str, configured: Dict[str, Any]) -> None:
+    def update_progress(event: Dict[str, Any]) -> None:
+        with screen_jobs_lock:
+            job = screen_jobs[job_id]
+            job.update({
+                "status": "running",
+                "processed": event["processed"],
+                "pool_size": event["total"],
+                "current_symbol": event["current_symbol"],
+                "current_name": event["current_name"],
+            })
+            if event["detail"] is not None:
+                job["details"].append(event["detail"])
+
+    try:
+        result = screen_tail_candidates(screen_date, configured, progress_callback=update_progress)
+        latest_screening["date"] = result["pool_date"]
+        latest_screening["candidates"] = result["stocks"]
+        with screen_jobs_lock:
+            screen_jobs[job_id].update({
+                "status": "completed",
+                "pool_date": result["pool_date"],
+                "pool_size": result["pool_size"],
+                "processed": result["processed"],
+                "current_symbol": None,
+                "current_name": None,
+                "stocks": result["stocks"],
+                "selected": len(result["stocks"]),
+                "errors": result["errors"],
+                "finished_at": datetime.now().isoformat(),
+            })
+    except Exception as exc:
+        with screen_jobs_lock:
+            screen_jobs[job_id].update({
+                "status": "failed",
+                "error": str(exc),
+                "current_symbol": None,
+                "current_name": None,
+                "finished_at": datetime.now().isoformat(),
+            })
+
+
+@app.post("/api/screen/jobs")
+def create_screening_job(request: ScreeningJobRequest):
+    if not StrategyRegistry.get(request.strategy):
+        raise HTTPException(status_code=404, detail="策略不存在")
+    screen_date = request.date or datetime.now().strftime("%Y%m%d")
+    configured = tail_runtime_params()
+    job_id = uuid4().hex
+    with screen_jobs_lock:
+        # Keep bounded in-memory history while never deleting active jobs.
+        completed_ids = [key for key, value in screen_jobs.items() if value["status"] in {"completed", "failed"}]
+        for old_id in completed_ids[:-19]:
+            screen_jobs.pop(old_id, None)
+        screen_jobs[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "date": screen_date,
+            "strategy": request.strategy,
+            "pool_date": None,
+            "pool_size": 0,
+            "processed": 0,
+            "selected": 0,
+            "current_symbol": None,
+            "current_name": None,
+            "details": [],
+            "stocks": [],
+            "errors": [],
+            "error": None,
+            "created_at": datetime.now().isoformat(),
+            "finished_at": None,
+        }
+    screen_executor.submit(run_screening_job, job_id, screen_date, request.strategy, configured)
+    return success_response({"job_id": job_id, "status": "queued"}, "完整涨停池分析任务已创建")
+
+
+@app.get("/api/screen/jobs/{job_id}")
+def get_screening_job(job_id: str):
+    with screen_jobs_lock:
+        job = screen_jobs.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="筛选任务不存在或已过期")
+        return success_response({**job, "details": list(job["details"]), "stocks": list(job["stocks"])})
 
 @app.get("/api/screen")
 def screen_stocks(

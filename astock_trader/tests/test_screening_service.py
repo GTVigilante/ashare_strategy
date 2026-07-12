@@ -27,7 +27,8 @@ class ScreeningServiceTests(unittest.TestCase):
     def test_filters_real_contract_shape(self):
         result = screen_tail_candidates(
             "20250210",
-            {"min_volume_ratio": 1.2, "max_amplitude": 5},
+            {"min_volume_ratio": 1.2, "max_amplitude": 5,
+             "require_ma_bullish": False, "require_macd_golden": False},
             pool_fetcher=self.pool_fetcher,
             history_fetcher=lambda *_: self.bars,
         )
@@ -44,6 +45,30 @@ class ScreeningServiceTests(unittest.TestCase):
                 pool_fetcher=lambda _: pd.DataFrame(),
                 history_fetcher=lambda *_: self.bars,
             )
+
+    def test_default_analyzes_entire_pool_and_reports_each_detail(self):
+        events = []
+        pool = pd.DataFrame([
+            {"代码": "000001", "名称": "第一只", "流通市值": 10_000_000_000},
+            {"代码": "000002", "名称": "第二只", "流通市值": 10_000_000_000},
+            {"代码": "000003", "名称": "超大盘", "流通市值": 30_000_000_000},
+        ])
+
+        result = screen_tail_candidates(
+            "20250210",
+            {"max_market_cap": 200, "min_volume_ratio": 1.2, "max_amplitude": 5},
+            pool_fetcher=lambda date: pool if date == "20250207" else pd.DataFrame(),
+            history_fetcher=lambda *_: self.bars,
+            progress_callback=events.append,
+        )
+
+        self.assertEqual(result["pool_size"], 3)
+        self.assertEqual(result["processed"], 3)
+        detail_events = [event for event in events if event["detail"] is not None]
+        self.assertEqual(len(detail_events), 3)
+        self.assertEqual(detail_events[-1]["processed"], 3)
+        self.assertEqual(detail_events[-1]["total"], 3)
+        self.assertEqual(detail_events[-1]["detail"]["status"], "rejected")
 
 
 if __name__ == "__main__":

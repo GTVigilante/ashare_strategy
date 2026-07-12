@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   Strategy,
   StockCandidate,
+  ScreeningJob,
   BacktestResult,
   ParameterComparison,
   WalkForwardResult,
@@ -85,6 +86,12 @@ export const strategyApi = {
 // ============ 选股 API ============
 
 export const screenApi = {
+  start: (data: { date?: string; strategy?: string }): Promise<ApiResponse<{ job_id: string; status: string }>> =>
+    api.post('/screen/jobs', data),
+
+  job: (jobId: string): Promise<ApiResponse<ScreeningJob>> =>
+    api.get(`/screen/jobs/${jobId}`),
+
   // 筛选候选股票
   screen: (params?: {
     date?: string;

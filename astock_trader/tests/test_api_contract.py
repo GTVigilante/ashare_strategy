@@ -8,6 +8,7 @@ from api.main import (
     toggle_strategy,
     get_today_stocks, latest_screening,
     StockWatchAdd, add_watch,
+    run_screening_job, screen_jobs, screen_jobs_lock,
 )
 
 
@@ -108,6 +109,42 @@ class ApiContractTests(unittest.TestCase):
         repository_class.return_value.get_by_symbol.return_value = MagicMock()
         with self.assertRaisesRegex(Exception, "已在自选列表"):
             add_watch(StockWatchAdd(symbol="000001"))
+
+    @patch("api.main.screen_tail_candidates")
+    def test_background_screen_job_records_progress_and_completion(self, screen):
+        job_id = "test-full-pool-job"
+        with screen_jobs_lock:
+            screen_jobs[job_id] = {
+                "status": "queued", "processed": 0, "pool_size": 0,
+                "current_symbol": None, "current_name": None,
+                "details": [], "stocks": [], "errors": [],
+            }
+
+        def fake_screen(_date, _params, progress_callback):
+            progress_callback({
+                "processed": 0, "total": 2, "current_symbol": "000001",
+                "current_name": "第一只", "detail": None,
+            })
+            progress_callback({
+                "processed": 1, "total": 2, "current_symbol": "000001",
+                "current_name": "第一只",
+                "detail": {"symbol": "000001", "name": "第一只", "status": "selected", "reason": "通过"},
+            })
+            return {"pool_date": "20260711", "pool_size": 2, "processed": 2,
+                    "stocks": [{"symbol": "000001"}], "errors": []}
+
+        screen.side_effect = fake_screen
+        try:
+            run_screening_job(job_id, "20260712", "尾盘策略", {})
+            with screen_jobs_lock:
+                job = dict(screen_jobs[job_id])
+            self.assertEqual(job["status"], "completed")
+            self.assertEqual(job["processed"], job["pool_size"])
+            self.assertEqual(len(job["details"]), 1)
+            self.assertEqual(job["selected"], 1)
+        finally:
+            with screen_jobs_lock:
+                screen_jobs.pop(job_id, None)
 
 
 if __name__ == "__main__":

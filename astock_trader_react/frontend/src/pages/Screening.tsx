@@ -1,5 +1,5 @@
 // 选股页面
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Card,
   Row,
@@ -16,6 +16,8 @@ import {
   Spin,
   message,
   Alert,
+  Progress,
+  Statistic,
 } from 'antd';
 
 import {
@@ -27,7 +29,7 @@ import {
 import dayjs from 'dayjs';
 
 import { screenApi, strategyApi, watchApi } from '../api';
-import type { StockCandidate, StrategyParams } from '../types/api';
+import type { ScreeningJob, StockCandidate, StrategyParams } from '../types/api';
 import { apiErrorMessage } from '../utils/apiError';
 
 const { Title, Text } = Typography;
@@ -42,6 +44,8 @@ export default function Screening() {
   const [selectedStock, setSelectedStock] = useState<StockCandidate | null>(null);
   const [detailLoading] = useState(false);
   const [strategyParams, setStrategyParams] = useState<StrategyParams>({});
+  const [job, setJob] = useState<ScreeningJob | null>(null);
+  const pollTimer = useRef<number | null>(null);
 
   useEffect(() => {
     strategyApi.get('尾盘策略').then((res) => {
@@ -49,20 +53,51 @@ export default function Screening() {
     }).catch(() => undefined);
   }, []);
 
+  useEffect(() => () => {
+    if (pollTimer.current !== null) window.clearTimeout(pollTimer.current);
+  }, []);
+
   const handleScreen = async () => {
     try {
       setLoading(true);
-      const res = await screenApi.screen({ date, strategy });
+      setStocks([]);
+      setPoolInfo('');
+      setJob(null);
+      const res = await screenApi.start({ date, strategy });
       if (res.code === 0) {
-        setStocks(res.data.stocks || []);
-        setPoolInfo(`${res.data.pool_date} 涨停池 ${res.data.pool_size} 只 · 深度分析前 ${res.data.processed} 只`);
-        if (!res.data.stocks?.length) message.info('真实数据获取成功，但没有股票通过全部条件');
+        const poll = async () => {
+          try {
+            const response = await screenApi.job(res.data.job_id);
+            if (response.code !== 0) throw new Error(response.message);
+            const nextJob = response.data;
+            setJob(nextJob);
+            if (nextJob.status === 'completed') {
+              setStocks(nextJob.stocks || []);
+              setPoolInfo(`${nextJob.pool_date} 涨停池 ${nextJob.pool_size} 只 · 已完整分析 ${nextJob.processed} 只`);
+              setLoading(false);
+              if (!nextJob.stocks.length) message.info('完整涨停池分析完成，但没有股票通过全部条件');
+              return;
+            }
+            if (nextJob.status === 'failed') {
+              setLoading(false);
+              message.error(nextJob.error || '完整涨停池分析失败');
+              return;
+            }
+            pollTimer.current = window.setTimeout(poll, 800);
+          } catch (error) {
+            setLoading(false);
+            message.error(apiErrorMessage(error, '获取筛选进度失败'));
+          }
+        };
+        await poll();
+      } else {
+        setLoading(false);
+        message.error(res.message || '创建完整涨停池分析任务失败');
       }
     } catch (error) {
+      setLoading(false);
       console.error('筛选失败:', error);
       message.error(apiErrorMessage(error, '筛选失败，请稍后重试'));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -239,9 +274,40 @@ export default function Screening() {
       <Alert
         type="info"
         showIcon
-        title="首次筛选需要下载候选股历史行情，可能耗时 10-60 秒；后续相同区间会命中本地缓存。"
+        title="系统会分析完整涨停池并实时显示进度。首次运行可能需要数分钟；已缓存股票会明显加快。"
         style={{ marginBottom: 16 }}
       />
+
+      {job && (
+        <Card title="完整涨停池分析进度" style={{ marginBottom: 16 }}>
+          <Progress
+            percent={job.pool_size ? Math.round(job.processed / job.pool_size * 100) : 0}
+            status={job.status === 'failed' ? 'exception' : job.status === 'completed' ? 'success' : 'active'}
+            format={() => job.pool_size ? `${job.processed} / ${job.pool_size}` : '正在获取涨停池'}
+          />
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={12} md={6}><Statistic title="已处理" value={job.processed} suffix={job.pool_size ? `/ ${job.pool_size}` : ''} /></Col>
+            <Col xs={12} md={6}><Statistic title="通过" value={job.details.filter((item) => item.status === 'selected').length} /></Col>
+            <Col xs={12} md={6}><Statistic title="未通过" value={job.details.filter((item) => item.status === 'rejected').length} /></Col>
+            <Col xs={12} md={6}><Statistic title="数据错误" value={job.details.filter((item) => item.status === 'error').length} /></Col>
+          </Row>
+          {job.current_symbol && <Text type="secondary">当前：{job.current_symbol} {job.current_name}</Text>}
+          <Table
+            style={{ marginTop: 16 }}
+            size="small"
+            rowKey="symbol"
+            dataSource={job.details}
+            pagination={{ pageSize: 8, showSizeChanger: false }}
+            locale={{ emptyText: job.status === 'queued' ? '任务排队中' : '正在获取第一只股票' }}
+            columns={[
+              { title: '代码', dataIndex: 'symbol', width: 90 },
+              { title: '名称', dataIndex: 'name', width: 110 },
+              { title: '结论', dataIndex: 'status', width: 90, render: (value) => <Tag color={value === 'selected' ? 'success' : value === 'error' ? 'error' : 'default'}>{value === 'selected' ? '通过' : value === 'error' ? '错误' : '未通过'}</Tag> },
+              { title: '明细', dataIndex: 'reason', ellipsis: true },
+            ]}
+          />
+        </Card>
+      )}
 
       {/* 筛选结果 */}
       <Card
@@ -252,19 +318,14 @@ export default function Screening() {
           </Tag>
         }
       >
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 50 }}>
-            <Spin size="large" />
-          </div>
-        ) : (
-          <Table
+        <Table
             columns={columns}
             dataSource={stocks}
             rowKey="symbol"
             pagination={{ pageSize: 10 }}
             size="middle"
+            loading={loading && !job}
           />
-        )}
       </Card>
 
       {/* 股票详情弹窗 */}
